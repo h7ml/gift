@@ -4,13 +4,16 @@ import autoTable from 'jspdf-autotable'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import type { Event, GiftRecord } from './types'
+import { formatChineseMoney } from './chinese-money.js'
 
 export function exportToExcel(records: GiftRecord[], event: Event) {
   const data = records.map((record, index) => ({
     '序号': index + 1,
+    '记账人': event.bookkeeperName || '-',
     '姓名': record.guestName,
     '亲戚称谓': record.relativeTitle || '-',
     '金额（元）': record.amount,
+    '金额大写': formatChineseMoney(record.amount),
     '礼品': record.giftItem || '-',
     '日期': format(new Date(record.date), 'yyyy年MM月dd日', { locale: zhCN }),
     '备注': record.note || '-',
@@ -22,9 +25,11 @@ export function exportToExcel(records: GiftRecord[], event: Event) {
   const totalAmount = records.reduce((sum, r) => sum + r.amount, 0)
   data.push({
     '序号': '' as unknown as number,
+    '记账人': event.bookkeeperName || '-',
     '姓名': '合计',
     '亲戚称谓': '-',
     '金额（元）': totalAmount,
+    '金额大写': formatChineseMoney(totalAmount),
     '礼品': '-',
     '日期': '-',
     '备注': `共 ${records.length} 人`,
@@ -38,9 +43,11 @@ export function exportToExcel(records: GiftRecord[], event: Event) {
   // 设置列宽
   worksheet['!cols'] = [
     { wch: 6 },  // 序号
+    { wch: 12 }, // 记账人
     { wch: 12 }, // 姓名
     { wch: 12 }, // 亲戚称谓
     { wch: 12 }, // 金额
+    { wch: 28 }, // 金额大写
     { wch: 15 }, // 礼品
     { wch: 15 }, // 日期
     { wch: 20 }, // 备注
@@ -64,8 +71,9 @@ export function exportToPDF(records: GiftRecord[], event: Event) {
   doc.setFontSize(12)
   doc.text(`活动类型: ${event.type}`, 20, 35)
   doc.text(`活动日期: ${format(new Date(event.date), 'yyyy年MM月dd日', { locale: zhCN })}`, 20, 42)
+  doc.text(`记账人: ${event.bookkeeperName || '-'}`, 20, 49)
   if (event.location) {
-    doc.text(`活动地点: ${event.location}`, 20, 49)
+    doc.text(`活动地点: ${event.location}`, 20, 56)
   }
 
   // 添加表格
@@ -73,6 +81,7 @@ export function exportToPDF(records: GiftRecord[], event: Event) {
     index + 1,
     record.guestName,
     `¥${record.amount.toLocaleString()}`,
+    formatChineseMoney(record.amount),
     record.giftItem || '-',
     format(new Date(record.date), 'MM/dd'),
     record.note || '-'
@@ -84,15 +93,16 @@ export function exportToPDF(records: GiftRecord[], event: Event) {
     '',
     'Total',
     `¥${totalAmount.toLocaleString()}`,
+    formatChineseMoney(totalAmount),
     '-',
     '-',
     `${records.length} guests`
   ])
 
   autoTable(doc, {
-    head: [['#', 'Name', 'Amount', 'Gift', 'Date', 'Note']],
+    head: [['#', 'Name', 'Amount', 'Uppercase', 'Gift', 'Date', 'Note']],
     body: tableData,
-    startY: event.location ? 55 : 48,
+    startY: event.location ? 62 : 55,
     styles: {
       fontSize: 10,
       cellPadding: 3
@@ -138,9 +148,11 @@ export function exportAllToExcel(events: Event[], records: GiftRecord[]) {
 
     const data = eventRecords.map((record, index) => ({
       '序号': index + 1,
+      '记账人': event.bookkeeperName || '-',
       '姓名': record.guestName,
       '亲戚称谓': record.relativeTitle || '-',
       '金额（元）': record.amount,
+      '金额大写': formatChineseMoney(record.amount),
       '礼品': record.giftItem || '-',
       '日期': format(new Date(record.date), 'yyyy年MM月dd日', { locale: zhCN }),
       '备注': record.note || '-',
@@ -151,9 +163,11 @@ export function exportAllToExcel(events: Event[], records: GiftRecord[]) {
     const totalAmount = eventRecords.reduce((sum, r) => sum + r.amount, 0)
     data.push({
       '序号': '' as unknown as number,
+      '记账人': event.bookkeeperName || '-',
       '姓名': '合计',
       '亲戚称谓': '-',
       '金额（元）': totalAmount,
+      '金额大写': formatChineseMoney(totalAmount),
       '礼品': '-',
       '日期': '-',
       '备注': `共 ${eventRecords.length} 人`,
@@ -167,6 +181,8 @@ export function exportAllToExcel(events: Event[], records: GiftRecord[]) {
       { wch: 12 },
       { wch: 12 },
       { wch: 12 },
+      { wch: 12 },
+      { wch: 28 },
       { wch: 15 },
       { wch: 15 },
       { wch: 20 },

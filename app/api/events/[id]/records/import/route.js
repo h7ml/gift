@@ -1,6 +1,7 @@
 import { jsonError } from '@/lib/api.js'
 import { createGiftRecord, listGiftRecordsByEvent } from '@/lib/db/gifts.js'
 import {
+  findDuplicateGiftRecordNames,
   findDuplicateGiftRecords,
   parseGiftRecordsFromExcelBuffer,
 } from '@/lib/excel-import.js'
@@ -33,7 +34,10 @@ export async function POST(request, { params }) {
     const buffer = Buffer.from(await file.arrayBuffer())
     const records = parseGiftRecordsFromExcelBuffer(buffer, id)
     const existingRecords = await listGiftRecordsByEvent(user.id, id)
-    const duplicates = findDuplicateGiftRecords(records, existingRecords)
+    const duplicates = [
+      ...findDuplicateGiftRecords(records, existingRecords),
+      ...findDuplicateGiftRecordNames(records, existingRecords),
+    ]
 
     if (duplicates.length > 0 && !confirmDuplicates) {
       return Response.json(

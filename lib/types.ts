@@ -38,6 +38,7 @@ export interface Event {
   name: string
   type: EventType
   date: string
+  bookkeeperName: string
   location?: string
   description?: string
   createdAt: string

@@ -1,5 +1,10 @@
 import { jsonError, optionalString, readJson, requireString } from '@/lib/api.js'
-import { deleteGiftRecord, updateGiftRecord } from '@/lib/db/gifts.js'
+import {
+  deleteGiftRecord,
+  findGiftRecordByGuestName,
+  getGiftRecordById,
+  updateGiftRecord,
+} from '@/lib/db/gifts.js'
 import { requireCurrentUser } from '@/lib/server-auth.js'
 
 export async function PUT(request, { params }) {
@@ -13,13 +18,31 @@ export async function PUT(request, { params }) {
     const { id } = await params
     const body = await readJson(request)
     const amount = Number(body.amount)
+    const guestName = requireString(body.guestName, '请输入送礼人姓名')
 
     if (!Number.isFinite(amount) || amount < 0) {
       return jsonError('请输入有效金额')
     }
 
+    const currentRecord = await getGiftRecordById(user.id, id)
+
+    if (!currentRecord) {
+      return jsonError('记录不存在', 404)
+    }
+
+    const existingRecord = await findGiftRecordByGuestName(
+      user.id,
+      currentRecord.eventId,
+      guestName,
+      id
+    )
+
+    if (existingRecord) {
+      return jsonError('该活动已存在同名礼金记录')
+    }
+
     const record = await updateGiftRecord(user.id, id, {
-      guestName: requireString(body.guestName, '请输入送礼人姓名'),
+      guestName,
       amount,
       giftItem: optionalString(body.giftItem) ?? '',
       relativeTitle: optionalString(body.relativeTitle),

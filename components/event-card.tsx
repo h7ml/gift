@@ -9,7 +9,7 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu'
-import { MoreVertical, Calendar, MapPin, Trash2, Edit, FileSpreadsheet, FileText } from 'lucide-react'
+import { MoreVertical, Calendar, MapPin, Trash2, Edit, FileSpreadsheet, FileText, UserRound } from 'lucide-react'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import type { Event, GiftRecord } from '@/lib/types'
@@ -93,6 +93,10 @@ export function EventCard({ event, records, onSelect, onEdit, onDelete }: EventC
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Calendar className="h-4 w-4" />
             <span>{format(new Date(event.date), 'yyyy年MM月dd日', { locale: zhCN })}</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <UserRound className="h-4 w-4" />
+            <span>记账人：{event.bookkeeperName || '-'}</span>
           </div>
           {event.location && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">

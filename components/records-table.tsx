@@ -33,7 +33,18 @@ import {
 import { MoreVertical, Edit, Trash2, Search, ArrowUpDown, Columns3 } from 'lucide-react'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
+import { formatChineseMoney } from '@/lib/chinese-money.js'
 import type { GiftRecord } from '@/lib/types'
+import {
+  DEFAULT_GIFT_RECORD_COLUMNS,
+  GIFT_RECORD_COLUMN_KEYS,
+  type GiftRecordColumnKey,
+} from '@/lib/gift-record-columns.js'
+import {
+  PAGE_SIZE_OPTIONS,
+  getPaginationState,
+  paginateItems,
+} from '@/lib/pagination.js'
 
 interface RecordsTableProps {
   records: GiftRecord[]
@@ -43,15 +54,7 @@ interface RecordsTableProps {
 
 type SortField = 'guestName' | 'amount' | 'date' | 'createdAt' | 'updatedAt'
 type SortOrder = 'asc' | 'desc'
-type ColumnKey =
-  | 'guestName'
-  | 'relativeTitle'
-  | 'amount'
-  | 'giftItem'
-  | 'date'
-  | 'note'
-  | 'createdAt'
-  | 'updatedAt'
+type ColumnKey = GiftRecordColumnKey
 
 const RECORD_COLUMNS: Array<{
   key: ColumnKey
@@ -79,6 +82,11 @@ const RECORD_COLUMNS: Array<{
         ¥{record.amount.toLocaleString()}
       </span>
     ),
+  },
+  {
+    key: 'amountUppercase',
+    label: '金额大写',
+    render: (record) => formatChineseMoney(record.amount),
   },
   {
     key: 'giftItem',
@@ -110,16 +118,23 @@ const RECORD_COLUMNS: Array<{
   },
 ]
 
-const DEFAULT_VISIBLE_COLUMNS: ColumnKey[] = ['guestName', 'amount']
-
-export function RecordsTable({ records, onEdit, onDelete }: RecordsTableProps) {
+export function RecordsTable({
+  records,
+  visibleColumns,
+  onVisibleColumnsChange,
+  onEdit,
+  onDelete,
+}: RecordsTableProps & {
+  visibleColumns: ColumnKey[]
+  onVisibleColumnsChange: (columns: ColumnKey[]) => Promise<ColumnKey[]>
+}) {
   const [searchQuery, setSearchQuery] = useState('')
   const [sortField, setSortField] = useState<SortField>('date')
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
   const [deleteId, setDeleteId] = useState<string | null>(null)
-  const [visibleColumns, setVisibleColumns] = useState<ColumnKey[]>(
-    DEFAULT_VISIBLE_COLUMNS
-  )
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const [isSavingColumns, setIsSavingColumns] = useState(false)
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -161,11 +176,27 @@ export function RecordsTable({ records, onEdit, onDelete }: RecordsTableProps) {
   const activeColumns = RECORD_COLUMNS.filter((column) =>
     visibleColumns.includes(column.key)
   )
+  const pagination = getPaginationState({
+    totalItems: filteredAndSortedRecords.length,
+    page,
+    pageSize,
+  })
+  const paginatedRecords = paginateItems(filteredAndSortedRecords, pagination)
 
   const handleConfirmDelete = async () => {
     if (deleteId) {
       await onDelete(deleteId)
       setDeleteId(null)
+    }
+  }
+
+  const handleVisibleColumnsChange = async (columns: ColumnKey[]) => {
+    setIsSavingColumns(true)
+
+    try {
+      await onVisibleColumnsChange(columns)
+    } finally {
+      setIsSavingColumns(false)
     }
   }
 
@@ -206,22 +237,38 @@ export function RecordsTable({ records, onEdit, onDelete }: RecordsTableProps) {
                 key={column.key}
                 checked={visibleColumns.includes(column.key)}
                 onCheckedChange={(checked) => {
-                  setVisibleColumns((prev) => {
+                  const nextColumns = (() => {
                     if (checked) {
-                      return prev.includes(column.key) ? prev : [...prev, column.key]
+                      return visibleColumns.includes(column.key)
+                        ? visibleColumns
+                        : [...visibleColumns, column.key]
                     }
 
-                    if (prev.length === 1) {
-                      return prev
+                    if (visibleColumns.length === 1) {
+                      return visibleColumns
                     }
 
-                    return prev.filter((key) => key !== column.key)
-                  })
+                    return visibleColumns.filter((key) => key !== column.key)
+                  })()
+
+                  handleVisibleColumnsChange(nextColumns)
                 }}
               >
                 {column.label}
               </DropdownMenuCheckboxItem>
             ))}
+            <DropdownMenuItem
+              disabled={isSavingColumns}
+              onClick={() => handleVisibleColumnsChange(DEFAULT_GIFT_RECORD_COLUMNS)}
+            >
+              一键默认
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={isSavingColumns}
+              onClick={() => handleVisibleColumnsChange(GIFT_RECORD_COLUMN_KEYS)}
+            >
+              一键全部
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -252,10 +299,10 @@ export function RecordsTable({ records, onEdit, onDelete }: RecordsTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredAndSortedRecords.map((record, index) => (
+            {paginatedRecords.map((record, index) => (
               <TableRow key={record.id} className="hover:bg-secondary/30">
                 <TableCell className="text-center text-muted-foreground">
-                  {index + 1}
+                  {(pagination.page - 1) * pagination.pageSize + index + 1}
                 </TableCell>
                 {activeColumns.map((column) => (
                   <TableCell
@@ -291,6 +338,50 @@ export function RecordsTable({ records, onEdit, onDelete }: RecordsTableProps) {
             ))}
           </TableBody>
         </Table>
+      </div>
+
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span>每页</span>
+          <select
+            value={pagination.pageSize}
+            onChange={(event) => {
+              setPageSize(Number(event.target.value))
+              setPage(1)
+            }}
+            className="h-8 rounded-md border bg-background px-2 text-foreground"
+          >
+            {PAGE_SIZE_OPTIONS.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
+          <span>条</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={pagination.page <= 1}
+            onClick={() => setPage((value) => Math.max(1, value - 1))}
+          >
+            上一页
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            {pagination.page} / {pagination.pageCount}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={pagination.page >= pagination.pageCount}
+            onClick={() =>
+              setPage((value) => Math.min(pagination.pageCount, value + 1))
+            }
+          >
+            下一页
+          </Button>
+        </div>
       </div>
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>

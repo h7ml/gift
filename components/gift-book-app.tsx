@@ -24,6 +24,7 @@ import { EventFormDialog } from './event-form-dialog'
 import { EmptyState } from './empty-state'
 import { Spinner } from '@/components/ui/spinner'
 import { exportAllToExcel } from '@/lib/export'
+import { buildPageTitle } from '@/lib/page-title.js'
 import type { Event } from '@/lib/types'
 
 export function GiftBookApp() {
@@ -50,6 +51,10 @@ export function GiftBookApp() {
       router.push('/login')
     }
   }, [authLoading, isAuthenticated, router])
+
+  useEffect(() => {
+    document.title = buildPageTitle('全部活动')
+  }, [])
 
   const handleCreateEvent = async (data: Omit<Event, 'id' | 'createdAt'>) => {
     try {

@@ -22,10 +22,13 @@ create table if not exists events (
   name text not null,
   type text not null,
   event_date date not null,
+  bookkeeper_name text not null default '',
   location text,
   description text,
   created_at timestamptz not null default now()
 );
+
+alter table events add column if not exists bookkeeper_name text not null default '';
 
 create table if not exists gift_records (
   id uuid primary key default gen_random_uuid(),
@@ -55,6 +58,14 @@ create table if not exists event_attachments (
 
 alter table event_attachments add column if not exists display_name text;
 alter table event_attachments add column if not exists note text;
+
+create table if not exists user_preferences (
+  user_id uuid not null references users(id) on delete cascade,
+  preference_key text not null,
+  preference_value jsonb not null,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, preference_key)
+);
 
 create index if not exists sessions_token_idx on sessions(token);
 create index if not exists sessions_expires_at_idx on sessions(expires_at);

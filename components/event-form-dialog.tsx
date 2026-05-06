@@ -33,6 +33,7 @@ export function EventFormDialog({ open, onOpenChange, event, onSubmit }: EventFo
   const [name, setName] = useState('')
   const [type, setType] = useState<EventType>('婚礼')
   const [date, setDate] = useState('')
+  const [bookkeeperName, setBookkeeperName] = useState('')
   const [location, setLocation] = useState('')
   const [description, setDescription] = useState('')
 
@@ -41,12 +42,14 @@ export function EventFormDialog({ open, onOpenChange, event, onSubmit }: EventFo
       setName(event.name)
       setType(event.type)
       setDate(event.date)
+      setBookkeeperName(event.bookkeeperName)
       setLocation(event.location || '')
       setDescription(event.description || '')
     } else {
       setName('')
       setType('婚礼')
       setDate(new Date().toISOString().split('T')[0])
+      setBookkeeperName('')
       setLocation('')
       setDescription('')
     }
@@ -58,6 +61,7 @@ export function EventFormDialog({ open, onOpenChange, event, onSubmit }: EventFo
       name,
       type,
       date,
+      bookkeeperName,
       location: location || undefined,
       description: description || undefined
     })
@@ -113,6 +117,17 @@ export function EventFormDialog({ open, onOpenChange, event, onSubmit }: EventFo
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="bookkeeperName">记账人 *</Label>
+            <Input
+              id="bookkeeperName"
+              value={bookkeeperName}
+              onChange={(e) => setBookkeeperName(e.target.value)}
+              placeholder="请输入本活动记账人"
               required
             />
           </div>

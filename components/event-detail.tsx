@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -24,16 +25,25 @@ import {
   Upload,
   Download,
   Trash2,
-  Edit
+  Edit,
+  ChevronDown,
+  ChevronRight,
+  UserRound
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import type { Event, EventAttachment, GiftRecord, Statistics } from '@/lib/types'
 import { EVENT_TYPE_ICONS } from '@/lib/types'
+import type { GiftRecordColumnKey } from '@/lib/gift-record-columns.js'
 import { StatisticsCards } from './statistics-cards'
 import { RecordsTable } from './records-table'
 import { RecordFormDialog } from './record-form-dialog'
 import { exportToExcel, exportToPDF } from '@/lib/export'
+import {
+  PAGE_SIZE_OPTIONS,
+  getPaginationState,
+  paginateItems,
+} from '@/lib/pagination.js'
 
 interface EventDetailProps {
   event: Event
@@ -41,10 +51,13 @@ interface EventDetailProps {
   attachments: EventAttachment[]
   statistics: Statistics
   duplicateImport?: { duplicateCount: number; totalCount: number } | null
+  giftRecordColumns: GiftRecordColumnKey[]
+  section?: 'overview' | 'notes' | 'records'
   onBack: () => void
   onAddRecord: (data: Omit<GiftRecord, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
   onUpdateRecord: (id: string, data: Partial<GiftRecord>) => Promise<void>
   onDeleteRecord: (id: string) => Promise<void>
+  onUpdateGiftRecordColumns: (columns: GiftRecordColumnKey[]) => Promise<GiftRecordColumnKey[]>
   onImportRecords: (eventId: string, file: File) => Promise<void>
   onConfirmImportDuplicates?: () => void
   onCancelImportDuplicates?: () => void
@@ -62,10 +75,13 @@ export function EventDetail({
   attachments,
   statistics, 
   duplicateImport,
+  giftRecordColumns,
+  section = 'overview',
   onBack,
   onAddRecord,
   onUpdateRecord,
   onDeleteRecord,
+  onUpdateGiftRecordColumns,
   onImportRecords,
   onConfirmImportDuplicates,
   onCancelImportDuplicates,
@@ -78,6 +94,10 @@ export function EventDetail({
   const [editingAttachment, setEditingAttachment] = useState<EventAttachment | null>(null)
   const [attachmentDisplayName, setAttachmentDisplayName] = useState('')
   const [attachmentNote, setAttachmentNote] = useState('')
+  const [attachmentPage, setAttachmentPage] = useState(1)
+  const [attachmentPageSize, setAttachmentPageSize] = useState(10)
+  const [attachmentsExpanded, setAttachmentsExpanded] = useState(true)
+  const [recordsExpanded, setRecordsExpanded] = useState(true)
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const excelInputRef = useRef<HTMLInputElement>(null)
@@ -146,6 +166,16 @@ export function EventDetail({
     })
     setEditingAttachment(null)
   }
+  const attachmentPagination = getPaginationState({
+    totalItems: attachments.length,
+    page: attachmentPage,
+    pageSize: attachmentPageSize,
+  })
+  const paginatedAttachments = paginateItems(attachments, attachmentPagination)
+  const showStatistics = section === 'overview'
+  const showNotes = section === 'overview' || section === 'notes'
+  const showRecords = section === 'overview' || section === 'records'
+  const showSectionLinks = section === 'overview'
 
   return (
     <div className="space-y-6">
@@ -164,6 +194,10 @@ export function EventDetail({
                   <Calendar className="h-3.5 w-3.5" />
                   {format(new Date(event.date), 'yyyy年MM月dd日', { locale: zhCN })}
                 </span>
+                <span className="flex items-center gap-1">
+                  <UserRound className="h-3.5 w-3.5" />
+                  记账人：{event.bookkeeperName || '-'}
+                </span>
                 {event.location && (
                   <span className="hidden sm:flex items-center gap-1">
                     <MapPin className="h-3.5 w-3.5" />
@@ -176,13 +210,35 @@ export function EventDetail({
         </div>
       </div>
 
-      <StatisticsCards statistics={statistics} />
+      {showStatistics && <StatisticsCards statistics={statistics} />}
 
+      {showNotes && (
       <Card className="border-primary/10">
         <CardHeader className="pb-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <CardTitle className="text-lg">活动手记</CardTitle>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                aria-expanded={attachmentsExpanded}
+                aria-label={attachmentsExpanded ? '折叠活动手记' : '展开活动手记'}
+                onClick={() => setAttachmentsExpanded((value) => !value)}
+              >
+                {attachmentsExpanded ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </Button>
+              <CardTitle className="text-lg">活动手记</CardTitle>
+            </div>
             <div className="flex flex-wrap gap-2">
+              {showSectionLinks && (
+                <Button asChild variant="ghost" size="sm">
+                  <Link href={`/events/${event.id}/notes`}>查看全部</Link>
+                </Button>
+              )}
               <input
                 ref={cameraInputRef}
                 type="file"
@@ -217,75 +273,151 @@ export function EventDetail({
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          {attachments.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <p>暂无手记文件</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {attachments.map((attachment) => (
-                <div
-                  key={attachment.id}
-                  className="border rounded-lg p-3 space-y-3 bg-card"
-                >
-                  {attachment.mimeType.startsWith('image/') && (
-                    <a href={attachment.url} target="_blank" rel="noreferrer">
-                      <img
-                        src={attachment.url}
-                        alt={attachment.originalName}
-                        className="w-full aspect-video object-cover rounded-md border"
-                      />
-                    </a>
-                  )}
-                  <div className="min-w-0">
-                    <p className="font-medium truncate">
-                      {attachment.displayName || attachment.originalName}
-                    </p>
-                    {attachment.note && (
-                      <p className="text-xs text-muted-foreground truncate">
-                        {attachment.note}
-                      </p>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      {formatFileSize(attachment.sizeBytes)}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button asChild variant="outline" size="sm" className="flex-1">
+        {attachmentsExpanded && (
+          <CardContent>
+            {attachments.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>暂无手记文件</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {paginatedAttachments.map((attachment) => (
+                  <div
+                    key={attachment.id}
+                    className="border rounded-lg p-3 space-y-3 bg-card"
+                  >
+                    {attachment.mimeType.startsWith('image/') && (
                       <a href={attachment.url} target="_blank" rel="noreferrer">
-                        <Download className="h-4 w-4 mr-2" />
-                        查看
+                        <img
+                          src={attachment.url}
+                          alt={attachment.originalName}
+                          className="w-full aspect-video object-cover rounded-md border"
+                        />
                       </a>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEditAttachment(attachment)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => onDeleteAttachment(attachment.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    )}
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">
+                        {attachment.displayName || attachment.originalName}
+                      </p>
+                      {attachment.note && (
+                        <p className="text-xs text-muted-foreground truncate">
+                          {attachment.note}
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        {formatFileSize(attachment.sizeBytes)}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button asChild variant="outline" size="sm" className="flex-1">
+                        <a href={attachment.url} target="_blank" rel="noreferrer">
+                          <Download className="h-4 w-4 mr-2" />
+                          查看
+                        </a>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditAttachment(attachment)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => onDeleteAttachment(attachment.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
+                ))}
+              </div>
+            )}
+            {attachments.length > 0 && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>每页</span>
+                  <select
+                    value={attachmentPagination.pageSize}
+                    onChange={(event) => {
+                      setAttachmentPageSize(Number(event.target.value))
+                      setAttachmentPage(1)
+                    }}
+                    className="h-8 rounded-md border bg-background px-2 text-foreground"
+                  >
+                    {PAGE_SIZE_OPTIONS.map((size) => (
+                      <option key={size} value={size}>
+                        {size}
+                      </option>
+                    ))}
+                  </select>
+                  <span>条</span>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={attachmentPagination.page <= 1}
+                    onClick={() =>
+                      setAttachmentPage((value) => Math.max(1, value - 1))
+                    }
+                  >
+                    上一页
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    {attachmentPagination.page} / {attachmentPagination.pageCount}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={
+                      attachmentPagination.page >= attachmentPagination.pageCount
+                    }
+                    onClick={() =>
+                      setAttachmentPage((value) =>
+                        Math.min(attachmentPagination.pageCount, value + 1)
+                      )
+                    }
+                  >
+                    下一页
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        )}
       </Card>
+      )}
 
+      {showRecords && (
       <Card className="border-primary/10">
         <CardHeader className="pb-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <CardTitle className="text-lg">礼金记录</CardTitle>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                aria-expanded={recordsExpanded}
+                aria-label={recordsExpanded ? '折叠礼金记录' : '展开礼金记录'}
+                onClick={() => setRecordsExpanded((value) => !value)}
+              >
+                {recordsExpanded ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </Button>
+              <CardTitle className="text-lg">礼金记录</CardTitle>
+            </div>
             <div className="flex flex-wrap gap-2">
+              {showSectionLinks && (
+                <Button asChild variant="ghost" size="sm">
+                  <Link href={`/events/${event.id}/records`}>查看全部</Link>
+                </Button>
+              )}
               <input
                 ref={excelInputRef}
                 type="file"
@@ -330,14 +462,19 @@ export function EventDetail({
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          <RecordsTable
-            records={records}
-            onEdit={handleEditRecord}
-            onDelete={onDeleteRecord}
-          />
-        </CardContent>
+        {recordsExpanded && (
+          <CardContent>
+            <RecordsTable
+              records={records}
+              visibleColumns={giftRecordColumns}
+              onVisibleColumnsChange={onUpdateGiftRecordColumns}
+              onEdit={handleEditRecord}
+              onDelete={onDeleteRecord}
+            />
+          </CardContent>
+        )}
       </Card>
+      )}
 
       <RecordFormDialog
         open={recordDialogOpen}

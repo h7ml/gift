@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { formatChineseMoney } from '@/lib/chinese-money.js'
 import type { GiftRecord } from '@/lib/types'
 
 interface RecordFormDialogProps {
@@ -67,6 +68,7 @@ export function RecordFormDialog({ open, onOpenChange, eventId, record, onSubmit
   const handleQuickAmount = (value: number) => {
     setAmount(value.toString())
   }
+  const amountUppercase = formatChineseMoney(Number(amount))
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -113,6 +115,11 @@ export function RecordFormDialog({ open, onOpenChange, eventId, record, onSubmit
               step="1"
               required
             />
+            {amountUppercase && (
+              <p className="text-xs text-muted-foreground">
+                大写金额：{amountUppercase}
+              </p>
+            )}
             <div className="flex flex-wrap gap-2 pt-1">
               {QUICK_AMOUNTS.map((value) => (
                 <Button

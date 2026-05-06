@@ -8,13 +8,19 @@ import { EventDetail } from './event-detail'
 import { Spinner } from '@/components/ui/spinner'
 import { useAuthStore } from '@/hooks/use-auth-store'
 import { DuplicateImportError, useGiftStore } from '@/hooks/use-gift-store'
+import type { GiftRecordColumnKey } from '@/lib/gift-record-columns.js'
+import { buildPageTitle } from '@/lib/page-title.js'
 import type { EventAttachment, GiftRecord } from '@/lib/types'
 
 interface EventDetailPageProps {
   eventId: string
+  section?: 'overview' | 'notes' | 'records'
 }
 
-export function EventDetailPage({ eventId }: EventDetailPageProps) {
+export function EventDetailPage({
+  eventId,
+  section = 'overview',
+}: EventDetailPageProps) {
   const router = useRouter()
   const { isLoading: authLoading, isAuthenticated } = useAuthStore()
   const {
@@ -23,6 +29,8 @@ export function EventDetailPage({ eventId }: EventDetailPageProps) {
     addRecord,
     updateRecord,
     deleteRecord,
+    giftRecordColumns,
+    setGiftRecordColumns,
     importRecordsFromExcel,
     getRecordsByEvent,
     getAttachmentsByEvent,
@@ -44,6 +52,20 @@ export function EventDetailPage({ eventId }: EventDetailPageProps) {
   }, [authLoading, isAuthenticated, router])
 
   const event = events.find((item) => item.id === eventId)
+
+  useEffect(() => {
+    const sectionTitle =
+      section === 'notes'
+        ? '活动手记'
+        : section === 'records'
+          ? '礼金记录'
+          : ''
+    const title = event?.name
+      ? [event.name, sectionTitle].filter(Boolean).join(' - ')
+      : sectionTitle || '活动详情'
+
+    document.title = buildPageTitle(title)
+  }, [event?.name, section])
 
   const handleAddRecord = async (data: Omit<GiftRecord, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
@@ -69,6 +91,17 @@ export function EventDetailPage({ eventId }: EventDetailPageProps) {
       toast.success('记录已删除')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '记录删除失败')
+    }
+  }
+
+  const handleUpdateGiftRecordColumns = async (
+    columns: GiftRecordColumnKey[]
+  ) => {
+    try {
+      return await setGiftRecordColumns(columns)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '列配置保存失败')
+      return giftRecordColumns
     }
   }
 
@@ -157,10 +190,17 @@ export function EventDetailPage({ eventId }: EventDetailPageProps) {
           attachments={getAttachmentsByEvent(event.id)}
           statistics={getStatistics(event.id)}
           duplicateImport={duplicateImport}
-          onBack={() => router.push('/')}
+          giftRecordColumns={giftRecordColumns}
+          section={section}
+          onBack={() =>
+            section === 'overview'
+              ? router.push('/')
+              : router.push(`/events/${event.id}`)
+          }
           onAddRecord={handleAddRecord}
           onUpdateRecord={handleUpdateRecord}
           onDeleteRecord={handleDeleteRecord}
+          onUpdateGiftRecordColumns={handleUpdateGiftRecordColumns}
           onImportRecords={(currentEventId, file) => runImport(file)}
           onConfirmImportDuplicates={() => {
             if (pendingImport) {

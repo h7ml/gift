@@ -1,6 +1,11 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import {
+  DEFAULT_GIFT_RECORD_COLUMNS,
+  normalizeGiftRecordColumns,
+  type GiftRecordColumnKey,
+} from '@/lib/gift-record-columns.js'
 import type { Event, EventAttachment, GiftRecord, Statistics } from '@/lib/types'
 
 type EventInput = Omit<Event, 'id' | 'createdAt'>
@@ -10,30 +15,46 @@ export function useGiftStore() {
   const [events, setEvents] = useState<Event[]>([])
   const [records, setRecords] = useState<GiftRecord[]>([])
   const [attachments, setAttachments] = useState<EventAttachment[]>([])
+  const [giftRecordColumns, setGiftRecordColumnsState] =
+    useState<GiftRecordColumnKey[]>(DEFAULT_GIFT_RECORD_COLUMNS)
   const [isLoading, setIsLoading] = useState(true)
 
   const loadData = useCallback(async () => {
     setIsLoading(true)
 
     try {
-      const response = await fetch('/api/gifts')
+      const [giftResponse, preferencesResponse] = await Promise.all([
+        fetch('/api/gifts'),
+        fetch('/api/preferences'),
+      ])
 
-      if (response.status === 401) {
+      if (giftResponse.status === 401 || preferencesResponse.status === 401) {
         setEvents([])
         setRecords([])
         setAttachments([])
+        setGiftRecordColumnsState(DEFAULT_GIFT_RECORD_COLUMNS)
         return
       }
 
-      const data = await response.json()
+      const [giftData, preferencesData] = await Promise.all([
+        giftResponse.json(),
+        preferencesResponse.json(),
+      ])
 
-      if (!response.ok) {
-        throw new Error(data.error || '加载数据失败')
+      if (!giftResponse.ok) {
+        throw new Error(giftData.error || '加载数据失败')
       }
 
-      setEvents(data.events)
-      setRecords(data.records)
-      setAttachments(data.attachments ?? [])
+      if (!preferencesResponse.ok) {
+        throw new Error(preferencesData.error || '加载配置失败')
+      }
+
+      setEvents(giftData.events)
+      setRecords(giftData.records)
+      setAttachments(giftData.attachments ?? [])
+      setGiftRecordColumnsState(
+        normalizeGiftRecordColumns(preferencesData.preferences?.giftRecordColumns)
+      )
     } catch (error) {
       console.error('加载数据失败:', error)
     } finally {
@@ -109,6 +130,31 @@ export function useGiftStore() {
     await requestJson(`/api/records/${id}`, { method: 'DELETE' })
     setRecords((prev) => prev.filter((record) => record.id !== id))
   }, [])
+
+  const setGiftRecordColumns = useCallback(
+    async (columns: GiftRecordColumnKey[]) => {
+      const normalizedColumns = normalizeGiftRecordColumns(columns)
+
+      setGiftRecordColumnsState(normalizedColumns)
+
+      try {
+        const data = await requestJson('/api/preferences', {
+          method: 'PUT',
+          body: { giftRecordColumns: normalizedColumns },
+        })
+        const savedColumns = normalizeGiftRecordColumns(
+          data.preferences?.giftRecordColumns
+        )
+
+        setGiftRecordColumnsState(savedColumns)
+        return savedColumns
+      } catch (error) {
+        await loadData()
+        throw error
+      }
+    },
+    [loadData]
+  )
 
   const importRecordsFromExcel = useCallback(async (
     eventId: string,
@@ -233,6 +279,7 @@ export function useGiftStore() {
     events,
     records,
     attachments,
+    giftRecordColumns,
     isLoading,
     addEvent,
     updateEvent,
@@ -240,6 +287,7 @@ export function useGiftStore() {
     addRecord,
     updateRecord,
     deleteRecord,
+    setGiftRecordColumns,
     importRecordsFromExcel,
     getRecordsByEvent,
     getAttachmentsByEvent,

@@ -2,6 +2,7 @@ import { jsonError, optionalString, readJson, requireString } from '@/lib/api.js
 import {
   createEvent,
   createGiftRecord,
+  findGiftRecordByGuestName,
   listGiftBookData,
 } from '@/lib/db/gifts.js'
 import { requireCurrentUser } from '@/lib/server-auth.js'
@@ -33,6 +34,7 @@ export async function POST(request) {
         name: requireString(body.name, '请输入活动名称'),
         type: requireString(body.type, '请选择活动类型'),
         date: requireString(body.date, '请选择活动日期'),
+        bookkeeperName: requireString(body.bookkeeperName, '请输入记账人'),
         location: optionalString(body.location),
         description: optionalString(body.description),
       })
@@ -42,14 +44,26 @@ export async function POST(request) {
 
     if (body.kind === 'record') {
       const amount = Number(body.amount)
+      const eventId = requireString(body.eventId, '请选择活动')
+      const guestName = requireString(body.guestName, '请输入送礼人姓名')
 
       if (!Number.isFinite(amount) || amount < 0) {
         return jsonError('请输入有效金额')
       }
 
+      const existingRecord = await findGiftRecordByGuestName(
+        user.id,
+        eventId,
+        guestName
+      )
+
+      if (existingRecord) {
+        return jsonError('该活动已存在同名礼金记录')
+      }
+
       const record = await createGiftRecord(user.id, {
-        eventId: requireString(body.eventId, '请选择活动'),
-        guestName: requireString(body.guestName, '请输入送礼人姓名'),
+        eventId,
+        guestName,
         amount,
         giftItem: optionalString(body.giftItem) ?? '',
         relativeTitle: optionalString(body.relativeTitle),

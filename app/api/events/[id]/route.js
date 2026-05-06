@@ -16,6 +16,7 @@ export async function PUT(request, { params }) {
       name: requireString(body.name, '请输入活动名称'),
       type: requireString(body.type, '请选择活动类型'),
       date: requireString(body.date, '请选择活动日期'),
+      bookkeeperName: requireString(body.bookkeeperName, '请输入记账人'),
       location: optionalString(body.location),
       description: optionalString(body.description),
     })
