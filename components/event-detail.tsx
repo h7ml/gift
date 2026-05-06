@@ -26,9 +26,9 @@ interface EventDetailProps {
   records: GiftRecord[]
   statistics: Statistics
   onBack: () => void
-  onAddRecord: (data: Omit<GiftRecord, 'id' | 'createdAt'>) => void
-  onUpdateRecord: (id: string, data: Partial<GiftRecord>) => void
-  onDeleteRecord: (id: string) => void
+  onAddRecord: (data: Omit<GiftRecord, 'id' | 'createdAt'>) => Promise<void>
+  onUpdateRecord: (id: string, data: Partial<GiftRecord>) => Promise<void>
+  onDeleteRecord: (id: string) => Promise<void>
 }
 
 export function EventDetail({ 
@@ -48,11 +48,11 @@ export function EventDetail({
     setRecordDialogOpen(true)
   }
 
-  const handleRecordSubmit = (data: Omit<GiftRecord, 'id' | 'createdAt'>) => {
+  const handleRecordSubmit = async (data: Omit<GiftRecord, 'id' | 'createdAt'>) => {
     if (editingRecord) {
-      onUpdateRecord(editingRecord.id, data)
+      await onUpdateRecord(editingRecord.id, data)
     } else {
-      onAddRecord(data)
+      await onAddRecord(data)
     }
     setEditingRecord(null)
   }

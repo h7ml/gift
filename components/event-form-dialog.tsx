@@ -26,7 +26,7 @@ interface EventFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   event?: Event | null
-  onSubmit: (data: Omit<Event, 'id' | 'createdAt'>) => void
+  onSubmit: (data: Omit<Event, 'id' | 'createdAt'>) => Promise<void>
 }
 
 export function EventFormDialog({ open, onOpenChange, event, onSubmit }: EventFormDialogProps) {
@@ -52,9 +52,9 @@ export function EventFormDialog({ open, onOpenChange, event, onSubmit }: EventFo
     }
   }, [event, open])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    onSubmit({
+    await onSubmit({
       name,
       type,
       date,

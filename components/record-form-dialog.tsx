@@ -19,7 +19,7 @@ interface RecordFormDialogProps {
   onOpenChange: (open: boolean) => void
   eventId: string
   record?: GiftRecord | null
-  onSubmit: (data: Omit<GiftRecord, 'id' | 'createdAt'>) => void
+  onSubmit: (data: Omit<GiftRecord, 'id' | 'createdAt'>) => Promise<void>
 }
 
 const QUICK_AMOUNTS = [200, 500, 600, 800, 1000, 1200, 1600, 2000]
@@ -47,9 +47,9 @@ export function RecordFormDialog({ open, onOpenChange, eventId, record, onSubmit
     }
   }, [record, open])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    onSubmit({
+    await onSubmit({
       guestName,
       amount: parseFloat(amount),
       giftItem,

@@ -60,26 +60,38 @@ export function GiftBookApp() {
     ? events.find(e => e.id === selectedEventId) 
     : null
 
-  const handleCreateEvent = (data: Omit<Event, 'id' | 'createdAt'>) => {
-    addEvent(data)
-    toast.success('活动创建成功')
+  const handleCreateEvent = async (data: Omit<Event, 'id' | 'createdAt'>) => {
+    try {
+      await addEvent(data)
+      toast.success('活动创建成功')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '活动创建失败')
+    }
   }
 
-  const handleUpdateEvent = (data: Omit<Event, 'id' | 'createdAt'>) => {
+  const handleUpdateEvent = async (data: Omit<Event, 'id' | 'createdAt'>) => {
     if (editingEvent) {
-      updateEvent(editingEvent.id, data)
-      toast.success('活动更新成功')
+      try {
+        await updateEvent(editingEvent.id, data)
+        toast.success('活动更新成功')
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : '活动更新失败')
+      }
     }
     setEditingEvent(null)
   }
 
-  const handleDeleteEvent = () => {
+  const handleDeleteEvent = async () => {
     if (deleteEventId) {
-      deleteEvent(deleteEventId)
-      if (selectedEventId === deleteEventId) {
-        setSelectedEventId(null)
+      try {
+        await deleteEvent(deleteEventId)
+        if (selectedEventId === deleteEventId) {
+          setSelectedEventId(null)
+        }
+        toast.success('活动已删除')
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : '活动删除失败')
       }
-      toast.success('活动已删除')
       setDeleteEventId(null)
     }
   }
@@ -96,19 +108,31 @@ export function GiftBookApp() {
     }
   }
 
-  const handleAddRecord = (data: Omit<GiftRecord, 'id' | 'createdAt'>) => {
-    addRecord(data)
-    toast.success('礼金记录添加成功')
+  const handleAddRecord = async (data: Omit<GiftRecord, 'id' | 'createdAt'>) => {
+    try {
+      await addRecord(data)
+      toast.success('礼金记录添加成功')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '礼金记录添加失败')
+    }
   }
 
-  const handleUpdateRecord = (id: string, data: Partial<GiftRecord>) => {
-    updateRecord(id, data)
-    toast.success('记录更新成功')
+  const handleUpdateRecord = async (id: string, data: Partial<GiftRecord>) => {
+    try {
+      await updateRecord(id, data)
+      toast.success('记录更新成功')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '记录更新失败')
+    }
   }
 
-  const handleDeleteRecord = (id: string) => {
-    deleteRecord(id)
-    toast.success('记录已删除')
+  const handleDeleteRecord = async (id: string) => {
+    try {
+      await deleteRecord(id)
+      toast.success('记录已删除')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '记录删除失败')
+    }
   }
 
   const handleExportAll = () => {

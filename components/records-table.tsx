@@ -36,7 +36,7 @@ import type { GiftRecord } from '@/lib/types'
 interface RecordsTableProps {
   records: GiftRecord[]
   onEdit: (record: GiftRecord) => void
-  onDelete: (id: string) => void
+  onDelete: (id: string) => Promise<void>
 }
 
 type SortField = 'guestName' | 'amount' | 'date'
@@ -79,9 +79,9 @@ export function RecordsTable({ records, onEdit, onDelete }: RecordsTableProps) {
       return sortOrder === 'asc' ? comparison : -comparison
     })
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (deleteId) {
-      onDelete(deleteId)
+      await onDelete(deleteId)
       setDeleteId(null)
     }
   }

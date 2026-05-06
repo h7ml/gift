@@ -9,106 +9,69 @@ export interface User {
   createdAt: string
 }
 
-interface StoredUser extends User {
-  password: string
-}
-
-const AUTH_STORAGE_KEY = 'gift-book-auth'
-const USERS_STORAGE_KEY = 'gift-book-users'
-
 export function useAuthStore() {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const stored = localStorage.getItem(AUTH_STORAGE_KEY)
-    if (stored) {
+    let isMounted = true
+
+    const loadSession = async () => {
       try {
-        setUser(JSON.parse(stored))
+        const response = await fetch('/api/auth/me')
+        const data = await response.json()
+
+        if (isMounted) {
+          setUser(data.user ?? null)
+        }
       } catch {
-        localStorage.removeItem(AUTH_STORAGE_KEY)
+        if (isMounted) {
+          setUser(null)
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false)
+        }
       }
     }
-    setIsLoading(false)
-  }, [])
 
-  const getStoredUsers = useCallback((): StoredUser[] => {
-    const stored = localStorage.getItem(USERS_STORAGE_KEY)
-    if (stored) {
-      try {
-        return JSON.parse(stored)
-      } catch {
-        return []
-      }
+    loadSession()
+
+    return () => {
+      isMounted = false
     }
-    return []
   }, [])
 
-  const saveStoredUsers = useCallback((users: StoredUser[]) => {
-    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users))
+  const signUp = useCallback(async (
+    email: string,
+    password: string,
+    name: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    const result = await postAuth('/api/auth/register', { email, password, name })
+
+    if (result.success) {
+      setUser(result.user)
+    }
+
+    return result
   }, [])
 
-  const signUp = useCallback(
-    async (
-      email: string,
-      password: string,
-      name: string
-    ): Promise<{ success: boolean; error?: string }> => {
-      const users = getStoredUsers()
+  const signIn = useCallback(async (
+    email: string,
+    password: string
+  ): Promise<{ success: boolean; error?: string }> => {
+    const result = await postAuth('/api/auth/login', { email, password })
 
-      if (users.some((u) => u.email === email)) {
-        return { success: false, error: '该邮箱已被注册' }
-      }
+    if (result.success) {
+      setUser(result.user)
+    }
 
-      if (password.length < 6) {
-        return { success: false, error: '密码长度至少为6位' }
-      }
+    return result
+  }, [])
 
-      const newUser: StoredUser = {
-        id: crypto.randomUUID(),
-        email,
-        password,
-        name,
-        createdAt: new Date().toISOString(),
-      }
-
-      saveStoredUsers([...users, newUser])
-
-      const { password: _, ...userWithoutPassword } = newUser
-      setUser(userWithoutPassword)
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(userWithoutPassword))
-
-      return { success: true }
-    },
-    [getStoredUsers, saveStoredUsers]
-  )
-
-  const signIn = useCallback(
-    async (
-      email: string,
-      password: string
-    ): Promise<{ success: boolean; error?: string }> => {
-      const users = getStoredUsers()
-      const foundUser = users.find(
-        (u) => u.email === email && u.password === password
-      )
-
-      if (!foundUser) {
-        return { success: false, error: '邮箱或密码错误' }
-      }
-
-      const { password: _, ...userWithoutPassword } = foundUser
-      setUser(userWithoutPassword)
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(userWithoutPassword))
-
-      return { success: true }
-    },
-    [getStoredUsers]
-  )
-
-  const signOut = useCallback(() => {
+  const signOut = useCallback(async () => {
+    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined)
     setUser(null)
-    localStorage.removeItem(AUTH_STORAGE_KEY)
   }, [])
 
   return {
@@ -118,5 +81,31 @@ export function useAuthStore() {
     signUp,
     signIn,
     signOut,
+  }
+}
+
+type AuthResult =
+  | { success: true; user: User }
+  | { success: false; error: string }
+
+async function postAuth(
+  url: string,
+  body: Record<string, string>
+): Promise<AuthResult> {
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const data = await response.json()
+
+    if (!response.ok || !data.user) {
+      return { success: false, error: data.error || '请求失败' }
+    }
+
+    return { success: true, user: data.user }
+  } catch {
+    return { success: false, error: '网络请求失败' }
   }
 }
