@@ -19,13 +19,14 @@ interface RecordFormDialogProps {
   onOpenChange: (open: boolean) => void
   eventId: string
   record?: GiftRecord | null
-  onSubmit: (data: Omit<GiftRecord, 'id' | 'createdAt'>) => Promise<void>
+  onSubmit: (data: Omit<GiftRecord, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
 }
 
 const QUICK_AMOUNTS = [200, 500, 600, 800, 1000, 1200, 1600, 2000]
 
 export function RecordFormDialog({ open, onOpenChange, eventId, record, onSubmit }: RecordFormDialogProps) {
   const [guestName, setGuestName] = useState('')
+  const [relativeTitle, setRelativeTitle] = useState('')
   const [amount, setAmount] = useState('')
   const [giftItem, setGiftItem] = useState('')
   const [date, setDate] = useState('')
@@ -34,12 +35,14 @@ export function RecordFormDialog({ open, onOpenChange, eventId, record, onSubmit
   useEffect(() => {
     if (record) {
       setGuestName(record.guestName)
+      setRelativeTitle(record.relativeTitle || '')
       setAmount(record.amount.toString())
       setGiftItem(record.giftItem)
       setDate(record.date)
       setNote(record.note || '')
     } else {
       setGuestName('')
+      setRelativeTitle('')
       setAmount('')
       setGiftItem('')
       setDate(new Date().toISOString().split('T')[0])
@@ -51,6 +54,7 @@ export function RecordFormDialog({ open, onOpenChange, eventId, record, onSubmit
     e.preventDefault()
     await onSubmit({
       guestName,
+      relativeTitle: relativeTitle || undefined,
       amount: parseFloat(amount),
       giftItem,
       date,
@@ -84,6 +88,16 @@ export function RecordFormDialog({ open, onOpenChange, eventId, record, onSubmit
               onChange={(e) => setGuestName(e.target.value)}
               placeholder="请输入姓名"
               required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="relativeTitle">亲戚称谓</Label>
+            <Input
+              id="relativeTitle"
+              value={relativeTitle}
+              onChange={(e) => setRelativeTitle(e.target.value)}
+              placeholder="例如：表哥、舅舅、同事"
             />
           </div>
 

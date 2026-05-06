@@ -21,11 +21,10 @@ import { Header } from './header'
 import { StatisticsCards } from './statistics-cards'
 import { EventCard } from './event-card'
 import { EventFormDialog } from './event-form-dialog'
-import { EventDetail } from './event-detail'
 import { EmptyState } from './empty-state'
 import { Spinner } from '@/components/ui/spinner'
 import { exportAllToExcel } from '@/lib/export'
-import type { Event, GiftRecord } from '@/lib/types'
+import type { Event } from '@/lib/types'
 
 export function GiftBookApp() {
   const router = useRouter()
@@ -38,14 +37,10 @@ export function GiftBookApp() {
     addEvent,
     updateEvent,
     deleteEvent,
-    addRecord,
-    updateRecord,
-    deleteRecord,
     getRecordsByEvent,
     getStatistics
   } = useGiftStore()
 
-  const [selectedEventId, setSelectedEventId] = useState<string | null>(null)
   const [eventDialogOpen, setEventDialogOpen] = useState(false)
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
   const [deleteEventId, setDeleteEventId] = useState<string | null>(null)
@@ -55,10 +50,6 @@ export function GiftBookApp() {
       router.push('/login')
     }
   }, [authLoading, isAuthenticated, router])
-
-  const selectedEvent = selectedEventId 
-    ? events.find(e => e.id === selectedEventId) 
-    : null
 
   const handleCreateEvent = async (data: Omit<Event, 'id' | 'createdAt'>) => {
     try {
@@ -85,9 +76,6 @@ export function GiftBookApp() {
     if (deleteEventId) {
       try {
         await deleteEvent(deleteEventId)
-        if (selectedEventId === deleteEventId) {
-          setSelectedEventId(null)
-        }
         toast.success('活动已删除')
       } catch (error) {
         toast.error(error instanceof Error ? error.message : '活动删除失败')
@@ -105,33 +93,6 @@ export function GiftBookApp() {
     setEventDialogOpen(open)
     if (!open) {
       setEditingEvent(null)
-    }
-  }
-
-  const handleAddRecord = async (data: Omit<GiftRecord, 'id' | 'createdAt'>) => {
-    try {
-      await addRecord(data)
-      toast.success('礼金记录添加成功')
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : '礼金记录添加失败')
-    }
-  }
-
-  const handleUpdateRecord = async (id: string, data: Partial<GiftRecord>) => {
-    try {
-      await updateRecord(id, data)
-      toast.success('记录更新成功')
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : '记录更新失败')
-    }
-  }
-
-  const handleDeleteRecord = async (id: string) => {
-    try {
-      await deleteRecord(id)
-      toast.success('记录已删除')
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : '记录删除失败')
     }
   }
 
@@ -161,17 +122,7 @@ export function GiftBookApp() {
       <Header />
       
       <main className="container mx-auto px-4 py-6">
-        {selectedEvent ? (
-          <EventDetail
-            event={selectedEvent}
-            records={getRecordsByEvent(selectedEvent.id)}
-            statistics={getStatistics(selectedEvent.id)}
-            onBack={() => setSelectedEventId(null)}
-            onAddRecord={handleAddRecord}
-            onUpdateRecord={handleUpdateRecord}
-            onDeleteRecord={handleDeleteRecord}
-          />
-        ) : events.length === 0 ? (
+        {events.length === 0 ? (
           <EmptyState onCreateEvent={() => setEventDialogOpen(true)} />
         ) : (
           <div className="space-y-6">
@@ -205,7 +156,7 @@ export function GiftBookApp() {
                   key={event.id}
                   event={event}
                   records={getRecordsByEvent(event.id)}
-                  onSelect={() => setSelectedEventId(event.id)}
+                  onSelect={() => router.push(`/events/${event.id}`)}
                   onEdit={() => handleEditEvent(event)}
                   onDelete={() => setDeleteEventId(event.id)}
                 />

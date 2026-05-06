@@ -31,10 +31,12 @@ test('mapGiftRecordRow returns the client record shape', () => {
     guest_name: '张三',
     amount: '800.00',
     gift_item: null,
+    relative_title: '表哥',
     record_date: '2026-05-07',
     event_id: 'event-1',
     note: '同事',
     created_at: '2026-05-07T10:00:00.000Z',
+    updated_at: '2026-05-08T10:00:00.000Z',
   })
 
   assert.deepEqual(record, {
@@ -42,9 +44,11 @@ test('mapGiftRecordRow returns the client record shape', () => {
     guestName: '张三',
     amount: 800,
     giftItem: '',
+    relativeTitle: '表哥',
     date: '2026-05-07',
     eventId: 'event-1',
     note: '同事',
     createdAt: '2026-05-07T10:00:00.000Z',
+    updatedAt: '2026-05-08T10:00:00.000Z',
   })
 })

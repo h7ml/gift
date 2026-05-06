@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import {
   Table,
   TableBody,
@@ -14,6 +15,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
@@ -28,7 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { MoreVertical, Edit, Trash2, Search, ArrowUpDown } from 'lucide-react'
+import { MoreVertical, Edit, Trash2, Search, ArrowUpDown, Columns3 } from 'lucide-react'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import type { GiftRecord } from '@/lib/types'
@@ -39,14 +41,85 @@ interface RecordsTableProps {
   onDelete: (id: string) => Promise<void>
 }
 
-type SortField = 'guestName' | 'amount' | 'date'
+type SortField = 'guestName' | 'amount' | 'date' | 'createdAt' | 'updatedAt'
 type SortOrder = 'asc' | 'desc'
+type ColumnKey =
+  | 'guestName'
+  | 'relativeTitle'
+  | 'amount'
+  | 'giftItem'
+  | 'date'
+  | 'note'
+  | 'createdAt'
+  | 'updatedAt'
+
+const RECORD_COLUMNS: Array<{
+  key: ColumnKey
+  label: string
+  sortable?: boolean
+  render: (record: GiftRecord) => ReactNode
+}> = [
+  {
+    key: 'guestName',
+    label: '姓名',
+    sortable: true,
+    render: (record) => <span className="font-medium">{record.guestName}</span>,
+  },
+  {
+    key: 'relativeTitle',
+    label: '亲戚称谓',
+    render: (record) => record.relativeTitle || '-',
+  },
+  {
+    key: 'amount',
+    label: '金额',
+    sortable: true,
+    render: (record) => (
+      <span className="text-primary font-semibold">
+        ¥{record.amount.toLocaleString()}
+      </span>
+    ),
+  },
+  {
+    key: 'giftItem',
+    label: '礼品',
+    render: (record) => record.giftItem || '-',
+  },
+  {
+    key: 'date',
+    label: '日期',
+    sortable: true,
+    render: (record) => format(new Date(record.date), 'MM月dd日', { locale: zhCN }),
+  },
+  {
+    key: 'note',
+    label: '备注',
+    render: (record) => record.note || '-',
+  },
+  {
+    key: 'createdAt',
+    label: '录入时间',
+    sortable: true,
+    render: (record) => format(new Date(record.createdAt), 'MM-dd HH:mm'),
+  },
+  {
+    key: 'updatedAt',
+    label: '更新时间',
+    sortable: true,
+    render: (record) => format(new Date(record.updatedAt), 'MM-dd HH:mm'),
+  },
+]
+
+const DEFAULT_VISIBLE_COLUMNS: ColumnKey[] = ['guestName', 'amount']
 
 export function RecordsTable({ records, onEdit, onDelete }: RecordsTableProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [sortField, setSortField] = useState<SortField>('date')
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [visibleColumns, setVisibleColumns] = useState<ColumnKey[]>(
+    DEFAULT_VISIBLE_COLUMNS
+  )
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -60,6 +133,7 @@ export function RecordsTable({ records, onEdit, onDelete }: RecordsTableProps) {
   const filteredAndSortedRecords = records
     .filter(record => 
       record.guestName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      record.relativeTitle?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       record.giftItem?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       record.note?.toLowerCase().includes(searchQuery.toLowerCase())
     )
@@ -75,9 +149,18 @@ export function RecordsTable({ records, onEdit, onDelete }: RecordsTableProps) {
         case 'date':
           comparison = new Date(a.date).getTime() - new Date(b.date).getTime()
           break
+        case 'createdAt':
+          comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          break
+        case 'updatedAt':
+          comparison = new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime()
+          break
       }
       return sortOrder === 'asc' ? comparison : -comparison
     })
+  const activeColumns = RECORD_COLUMNS.filter((column) =>
+    visibleColumns.includes(column.key)
+  )
 
   const handleConfirmDelete = async () => {
     if (deleteId) {
@@ -110,6 +193,37 @@ export function RecordsTable({ records, onEdit, onDelete }: RecordsTableProps) {
         <Badge variant="secondary" className="hidden sm:flex">
           共 {filteredAndSortedRecords.length} 条记录
         </Badge>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm">
+              <Columns3 className="h-4 w-4 mr-2" />
+              列
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {RECORD_COLUMNS.map((column) => (
+              <DropdownMenuCheckboxItem
+                key={column.key}
+                checked={visibleColumns.includes(column.key)}
+                onCheckedChange={(checked) => {
+                  setVisibleColumns((prev) => {
+                    if (checked) {
+                      return prev.includes(column.key) ? prev : [...prev, column.key]
+                    }
+
+                    if (prev.length === 1) {
+                      return prev
+                    }
+
+                    return prev.filter((key) => key !== column.key)
+                  })
+                }}
+              >
+                {column.label}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <div className="border rounded-lg overflow-hidden">
@@ -117,41 +231,23 @@ export function RecordsTable({ records, onEdit, onDelete }: RecordsTableProps) {
           <TableHeader>
             <TableRow className="bg-secondary/50">
               <TableHead className="w-[50px] text-center">#</TableHead>
-              <TableHead>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="-ml-3 h-8"
-                  onClick={() => handleSort('guestName')}
-                >
-                  姓名
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-              </TableHead>
-              <TableHead>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="-ml-3 h-8"
-                  onClick={() => handleSort('amount')}
-                >
-                  金额
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-              </TableHead>
-              <TableHead className="hidden md:table-cell">礼品</TableHead>
-              <TableHead>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="-ml-3 h-8"
-                  onClick={() => handleSort('date')}
-                >
-                  日期
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-              </TableHead>
-              <TableHead className="hidden lg:table-cell">备注</TableHead>
+              {activeColumns.map((column) => (
+                <TableHead key={column.key}>
+                  {column.sortable ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="-ml-3 h-8"
+                      onClick={() => handleSort(column.key as SortField)}
+                    >
+                      {column.label}
+                      <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                  ) : (
+                    column.label
+                  )}
+                </TableHead>
+              ))}
               <TableHead className="w-[50px]"></TableHead>
             </TableRow>
           </TableHeader>
@@ -161,21 +257,14 @@ export function RecordsTable({ records, onEdit, onDelete }: RecordsTableProps) {
                 <TableCell className="text-center text-muted-foreground">
                   {index + 1}
                 </TableCell>
-                <TableCell className="font-medium">{record.guestName}</TableCell>
-                <TableCell>
-                  <span className="text-primary font-semibold">
-                    ¥{record.amount.toLocaleString()}
-                  </span>
-                </TableCell>
-                <TableCell className="hidden md:table-cell text-muted-foreground">
-                  {record.giftItem || '-'}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {format(new Date(record.date), 'MM月dd日', { locale: zhCN })}
-                </TableCell>
-                <TableCell className="hidden lg:table-cell text-muted-foreground truncate max-w-[150px]">
-                  {record.note || '-'}
-                </TableCell>
+                {activeColumns.map((column) => (
+                  <TableCell
+                    key={column.key}
+                    className="text-muted-foreground truncate max-w-[180px]"
+                  >
+                    {column.render(record)}
+                  </TableCell>
+                ))}
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

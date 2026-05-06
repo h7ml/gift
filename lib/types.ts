@@ -13,9 +13,23 @@ export interface GiftRecord {
   guestName: string
   amount: number
   giftItem: string
+  relativeTitle?: string
   date: string
   eventId: string
   note?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface EventAttachment {
+  id: string
+  eventId: string
+  originalName: string
+  displayName?: string
+  note?: string
+  mimeType: string
+  sizeBytes: number
+  url: string
   createdAt: string
 }
 

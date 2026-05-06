@@ -9,10 +9,13 @@ export function exportToExcel(records: GiftRecord[], event: Event) {
   const data = records.map((record, index) => ({
     '序号': index + 1,
     '姓名': record.guestName,
+    '亲戚称谓': record.relativeTitle || '-',
     '金额（元）': record.amount,
     '礼品': record.giftItem || '-',
     '日期': format(new Date(record.date), 'yyyy年MM月dd日', { locale: zhCN }),
-    '备注': record.note || '-'
+    '备注': record.note || '-',
+    '录入时间': format(new Date(record.createdAt), 'yyyy-MM-dd HH:mm'),
+    '更新时间': format(new Date(record.updatedAt), 'yyyy-MM-dd HH:mm')
   }))
 
   // 添加汇总行
@@ -20,10 +23,13 @@ export function exportToExcel(records: GiftRecord[], event: Event) {
   data.push({
     '序号': '' as unknown as number,
     '姓名': '合计',
+    '亲戚称谓': '-',
     '金额（元）': totalAmount,
     '礼品': '-',
     '日期': '-',
-    '备注': `共 ${records.length} 人`
+    '备注': `共 ${records.length} 人`,
+    '录入时间': '-',
+    '更新时间': '-'
   })
 
   const worksheet = XLSX.utils.json_to_sheet(data)
@@ -33,10 +39,13 @@ export function exportToExcel(records: GiftRecord[], event: Event) {
   worksheet['!cols'] = [
     { wch: 6 },  // 序号
     { wch: 12 }, // 姓名
+    { wch: 12 }, // 亲戚称谓
     { wch: 12 }, // 金额
     { wch: 15 }, // 礼品
     { wch: 15 }, // 日期
-    { wch: 20 }  // 备注
+    { wch: 20 }, // 备注
+    { wch: 18 }, // 录入时间
+    { wch: 18 }  // 更新时间
   ]
 
   XLSX.utils.book_append_sheet(workbook, worksheet, event.name)
@@ -130,20 +139,26 @@ export function exportAllToExcel(events: Event[], records: GiftRecord[]) {
     const data = eventRecords.map((record, index) => ({
       '序号': index + 1,
       '姓名': record.guestName,
+      '亲戚称谓': record.relativeTitle || '-',
       '金额（元）': record.amount,
       '礼品': record.giftItem || '-',
       '日期': format(new Date(record.date), 'yyyy年MM月dd日', { locale: zhCN }),
-      '备注': record.note || '-'
+      '备注': record.note || '-',
+      '录入时间': format(new Date(record.createdAt), 'yyyy-MM-dd HH:mm'),
+      '更新时间': format(new Date(record.updatedAt), 'yyyy-MM-dd HH:mm')
     }))
 
     const totalAmount = eventRecords.reduce((sum, r) => sum + r.amount, 0)
     data.push({
       '序号': '' as unknown as number,
       '姓名': '合计',
+      '亲戚称谓': '-',
       '金额（元）': totalAmount,
       '礼品': '-',
       '日期': '-',
-      '备注': `共 ${eventRecords.length} 人`
+      '备注': `共 ${eventRecords.length} 人`,
+      '录入时间': '-',
+      '更新时间': '-'
     })
 
     const worksheet = XLSX.utils.json_to_sheet(data)
@@ -151,9 +166,12 @@ export function exportAllToExcel(events: Event[], records: GiftRecord[]) {
       { wch: 6 },
       { wch: 12 },
       { wch: 12 },
+      { wch: 12 },
       { wch: 15 },
       { wch: 15 },
-      { wch: 20 }
+      { wch: 20 },
+      { wch: 18 },
+      { wch: 18 }
     ]
 
     // 截取活动名称作为工作表名（Excel 限制 31 字符）

@@ -33,12 +33,31 @@ create table if not exists gift_records (
   guest_name text not null,
   amount numeric(12, 2) not null check (amount >= 0),
   gift_item text not null default '',
+  relative_title text,
   record_date date not null,
   note text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table gift_records add column if not exists relative_title text;
+alter table gift_records add column if not exists updated_at timestamptz not null default now();
+
+create table if not exists event_attachments (
+  id uuid primary key default gen_random_uuid(),
+  event_id uuid not null references events(id) on delete cascade,
+  original_name text not null,
+  stored_name text not null,
+  mime_type text not null,
+  size_bytes bigint not null check (size_bytes >= 0),
   created_at timestamptz not null default now()
 );
+
+alter table event_attachments add column if not exists display_name text;
+alter table event_attachments add column if not exists note text;
 
 create index if not exists sessions_token_idx on sessions(token);
 create index if not exists sessions_expires_at_idx on sessions(expires_at);
 create index if not exists events_user_id_created_at_idx on events(user_id, created_at desc);
 create index if not exists gift_records_event_id_created_at_idx on gift_records(event_id, created_at desc);
+create index if not exists event_attachments_event_id_created_at_idx on event_attachments(event_id, created_at desc);
