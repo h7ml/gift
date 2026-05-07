@@ -67,6 +67,8 @@ export async function POST(request) {
         amount,
         giftItem: optionalString(body.giftItem) ?? '',
         relativeTitle: optionalString(body.relativeTitle),
+        phoneNumber: optionalString(body.phoneNumber),
+        homeAddress: optionalString(body.homeAddress),
         date: requireString(body.date, '请选择日期'),
         note: optionalString(body.note),
       })

@@ -26,6 +26,8 @@ test('all gift record columns include every configurable key', () => {
   assert.deepEqual(GIFT_RECORD_COLUMN_KEYS, [
     'guestName',
     'relativeTitle',
+    'phoneNumber',
+    'homeAddress',
     'amount',
     'amountUppercase',
     'giftItem',

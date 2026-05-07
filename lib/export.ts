@@ -12,6 +12,8 @@ export function exportToExcel(records: GiftRecord[], event: Event) {
     '记账人': event.bookkeeperName || '-',
     '姓名': record.guestName,
     '亲戚称谓': record.relativeTitle || '-',
+    '联系电话': record.phoneNumber || '-',
+    '住宅地址': record.homeAddress || '-',
     '金额（元）': record.amount,
     '金额大写': formatChineseMoney(record.amount),
     '礼品': record.giftItem || '-',
@@ -28,6 +30,8 @@ export function exportToExcel(records: GiftRecord[], event: Event) {
     '记账人': event.bookkeeperName || '-',
     '姓名': '合计',
     '亲戚称谓': '-',
+    '联系电话': '-',
+    '住宅地址': '-',
     '金额（元）': totalAmount,
     '金额大写': formatChineseMoney(totalAmount),
     '礼品': '-',
@@ -46,6 +50,8 @@ export function exportToExcel(records: GiftRecord[], event: Event) {
     { wch: 12 }, // 记账人
     { wch: 12 }, // 姓名
     { wch: 12 }, // 亲戚称谓
+    { wch: 15 }, // 联系电话
+    { wch: 24 }, // 住宅地址
     { wch: 12 }, // 金额
     { wch: 28 }, // 金额大写
     { wch: 15 }, // 礼品
@@ -80,6 +86,8 @@ export function exportToPDF(records: GiftRecord[], event: Event) {
   const tableData = records.map((record, index) => [
     index + 1,
     record.guestName,
+    record.phoneNumber || '-',
+    record.homeAddress || '-',
     `¥${record.amount.toLocaleString()}`,
     formatChineseMoney(record.amount),
     record.giftItem || '-',
@@ -92,6 +100,8 @@ export function exportToPDF(records: GiftRecord[], event: Event) {
   tableData.push([
     '',
     'Total',
+    '-',
+    '-',
     `¥${totalAmount.toLocaleString()}`,
     formatChineseMoney(totalAmount),
     '-',
@@ -100,7 +110,7 @@ export function exportToPDF(records: GiftRecord[], event: Event) {
   ])
 
   autoTable(doc, {
-    head: [['#', 'Name', 'Amount', 'Uppercase', 'Gift', 'Date', 'Note']],
+    head: [['#', 'Name', 'Phone', 'Address', 'Amount', 'Uppercase', 'Gift', 'Date', 'Note']],
     body: tableData,
     startY: event.location ? 62 : 55,
     styles: {
@@ -151,6 +161,8 @@ export function exportAllToExcel(events: Event[], records: GiftRecord[]) {
       '记账人': event.bookkeeperName || '-',
       '姓名': record.guestName,
       '亲戚称谓': record.relativeTitle || '-',
+      '联系电话': record.phoneNumber || '-',
+      '住宅地址': record.homeAddress || '-',
       '金额（元）': record.amount,
       '金额大写': formatChineseMoney(record.amount),
       '礼品': record.giftItem || '-',
@@ -166,6 +178,8 @@ export function exportAllToExcel(events: Event[], records: GiftRecord[]) {
       '记账人': event.bookkeeperName || '-',
       '姓名': '合计',
       '亲戚称谓': '-',
+      '联系电话': '-',
+      '住宅地址': '-',
       '金额（元）': totalAmount,
       '金额大写': formatChineseMoney(totalAmount),
       '礼品': '-',
@@ -181,6 +195,8 @@ export function exportAllToExcel(events: Event[], records: GiftRecord[]) {
       { wch: 12 },
       { wch: 12 },
       { wch: 12 },
+      { wch: 15 },
+      { wch: 24 },
       { wch: 12 },
       { wch: 28 },
       { wch: 15 },

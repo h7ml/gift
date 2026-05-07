@@ -1,6 +1,8 @@
 export type GiftRecordColumnKey =
   | 'guestName'
   | 'relativeTitle'
+  | 'phoneNumber'
+  | 'homeAddress'
   | 'amount'
   | 'amountUppercase'
   | 'giftItem'

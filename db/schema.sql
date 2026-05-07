@@ -37,11 +37,16 @@ create table if not exists gift_records (
   amount numeric(12, 2) not null check (amount >= 0),
   gift_item text not null default '',
   relative_title text,
+  phone_number text,
+  home_address text,
   record_date date not null,
   note text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table gift_records add column if not exists phone_number text;
+alter table gift_records add column if not exists home_address text;
 
 alter table gift_records add column if not exists relative_title text;
 alter table gift_records add column if not exists updated_at timestamptz not null default now();
