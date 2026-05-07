@@ -33,7 +33,10 @@ import {
 import { MoreVertical, Edit, Trash2, Search, ArrowUpDown, Columns3, FileSpreadsheet, FileText } from 'lucide-react'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
-import { formatChineseMoney } from '@/lib/chinese-money.js'
+import {
+  formatDisplayChineseMoney,
+  formatDisplayMoney,
+} from '@/lib/money-display'
 import type { GiftRecord } from '@/lib/types'
 import {
   DEFAULT_GIFT_RECORD_COLUMNS,
@@ -45,6 +48,7 @@ import {
   getPaginationState,
   paginateItems,
 } from '@/lib/pagination.js'
+import { filterGiftRecordsBySearchQuery } from '@/lib/gift-record-search.js'
 
 interface RecordsTableProps {
   records: GiftRecord[]
@@ -53,6 +57,7 @@ interface RecordsTableProps {
   onDeleteMany: (ids: string[]) => Promise<void>
   onExportSelectedExcel: (records: GiftRecord[]) => void
   onExportSelectedPDF: (records: GiftRecord[]) => void
+  maskAmounts?: boolean
 }
 
 type SortField = 'guestName' | 'amount' | 'date' | 'createdAt' | 'updatedAt'
@@ -63,7 +68,7 @@ const RECORD_COLUMNS: Array<{
   key: ColumnKey
   label: string
   sortable?: boolean
-  render: (record: GiftRecord) => ReactNode
+  render: (record: GiftRecord, maskAmounts: boolean) => ReactNode
 }> = [
   {
     key: 'guestName',
@@ -80,16 +85,17 @@ const RECORD_COLUMNS: Array<{
     key: 'amount',
     label: '金额',
     sortable: true,
-    render: (record) => (
+    render: (record, maskAmounts) => (
       <span className="text-primary font-semibold">
-        ¥{record.amount.toLocaleString()}
+        {formatDisplayMoney(record.amount, maskAmounts)}
       </span>
     ),
   },
   {
     key: 'amountUppercase',
     label: '金额大写',
-    render: (record) => formatChineseMoney(record.amount),
+    render: (record, maskAmounts) =>
+      formatDisplayChineseMoney(record.amount, maskAmounts),
   },
   {
     key: 'giftItem',
@@ -130,6 +136,7 @@ export function RecordsTable({
   onDeleteMany,
   onExportSelectedExcel,
   onExportSelectedPDF,
+  maskAmounts = false,
 }: RecordsTableProps & {
   visibleColumns: ColumnKey[]
   onVisibleColumnsChange: (columns: ColumnKey[]) => Promise<ColumnKey[]>
@@ -153,13 +160,7 @@ export function RecordsTable({
     }
   }
 
-  const filteredAndSortedRecords = records
-    .filter(record => 
-      record.guestName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      record.relativeTitle?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      record.giftItem?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      record.note?.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+  const filteredAndSortedRecords = filterGiftRecordsBySearchQuery(records, searchQuery)
     .sort((a, b) => {
       let comparison = 0
       switch (sortField) {
@@ -256,7 +257,7 @@ export function RecordsTable({
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="搜索姓名、礼品或备注..."
+            placeholder="搜索姓名、金额或金额段..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"
@@ -408,7 +409,7 @@ export function RecordsTable({
                     key={column.key}
                     className="text-muted-foreground truncate max-w-[180px]"
                   >
-                    {column.render(record)}
+                    {column.render(record, maskAmounts)}
                   </TableCell>
                 ))}
                 <TableCell>

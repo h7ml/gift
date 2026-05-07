@@ -10,6 +10,7 @@ import { useAuthStore } from '@/hooks/use-auth-store'
 import { DuplicateImportError, useGiftStore } from '@/hooks/use-gift-store'
 import type { GiftRecordColumnKey } from '@/lib/gift-record-columns.js'
 import { buildPageTitle } from '@/lib/page-title.js'
+import { notifySuccess } from '@/lib/success-feedback.js'
 import type { EventAttachment, GiftRecord } from '@/lib/types'
 
 interface EventDetailPageProps {
@@ -30,7 +31,9 @@ export function EventDetailPage({
     updateRecord,
     deleteRecord,
     giftRecordColumns,
+    maskAmounts,
     setGiftRecordColumns,
+    setMaskAmounts,
     importRecordsFromExcel,
     getRecordsByEvent,
     getAttachmentsByEvent,
@@ -70,7 +73,7 @@ export function EventDetailPage({
   const handleAddRecord = async (data: Omit<GiftRecord, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
       await addRecord(data)
-      toast.success('礼金记录添加成功')
+      notifySuccess('礼金记录添加成功')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '礼金记录添加失败')
     }
@@ -79,7 +82,7 @@ export function EventDetailPage({
   const handleUpdateRecord = async (id: string, data: Partial<GiftRecord>) => {
     try {
       await updateRecord(id, data)
-      toast.success('记录更新成功')
+      notifySuccess('记录更新成功')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '记录更新失败')
     }
@@ -88,7 +91,7 @@ export function EventDetailPage({
   const handleDeleteRecord = async (id: string) => {
     try {
       await deleteRecord(id)
-      toast.success('记录已删除')
+      notifySuccess('记录已删除')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '记录删除失败')
     }
@@ -97,7 +100,7 @@ export function EventDetailPage({
   const handleDeleteRecords = async (ids: string[]) => {
     try {
       await Promise.all(ids.map((id) => deleteRecord(id)))
-      toast.success(`已删除 ${ids.length} 条记录`)
+      notifySuccess(`已删除 ${ids.length} 条记录`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '批量删除失败')
     }
@@ -114,6 +117,14 @@ export function EventDetailPage({
     }
   }
 
+  const handleMaskAmountsChange = async (checked: boolean) => {
+    try {
+      await setMaskAmounts(checked)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '金额显示配置保存失败')
+    }
+  }
+
   const runImport = async (file: File, confirmDuplicates = false) => {
     try {
       const importedRecords = await importRecordsFromExcel(eventId, file, {
@@ -121,7 +132,7 @@ export function EventDetailPage({
       })
       setPendingImport(null)
       setDuplicateImport(null)
-      toast.success(`已导入 ${importedRecords.length} 条记录`)
+      notifySuccess(`已导入 ${importedRecords.length} 条记录`)
     } catch (error) {
       if (error instanceof DuplicateImportError) {
         setPendingImport(file)
@@ -139,7 +150,7 @@ export function EventDetailPage({
   const handleUploadAttachments = async (currentEventId: string, files: File[]) => {
     try {
       await uploadAttachments(currentEventId, files)
-      toast.success('文件上传成功')
+      notifySuccess('文件上传成功')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '文件上传失败')
     }
@@ -151,7 +162,7 @@ export function EventDetailPage({
   ) => {
     try {
       await updateAttachment(id, data)
-      toast.success('文件信息已更新')
+      notifySuccess('文件信息已更新')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '文件信息更新失败')
     }
@@ -160,7 +171,7 @@ export function EventDetailPage({
   const handleDeleteAttachment = async (id: string) => {
     try {
       await deleteAttachment(id)
-      toast.success('文件已删除')
+      notifySuccess('文件已删除')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '文件删除失败')
     }
@@ -169,7 +180,7 @@ export function EventDetailPage({
   const handleDeleteAttachments = async (ids: string[]) => {
     try {
       await Promise.all(ids.map((id) => deleteAttachment(id)))
-      toast.success(`已删除 ${ids.length} 个文件`)
+      notifySuccess(`已删除 ${ids.length} 个文件`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '批量删除失败')
     }
@@ -209,6 +220,7 @@ export function EventDetailPage({
           statistics={getStatistics(event.id)}
           duplicateImport={duplicateImport}
           giftRecordColumns={giftRecordColumns}
+          maskAmounts={maskAmounts}
           section={section}
           onBack={() =>
             section === 'overview'
@@ -220,6 +232,7 @@ export function EventDetailPage({
           onDeleteRecord={handleDeleteRecord}
           onDeleteRecords={handleDeleteRecords}
           onUpdateGiftRecordColumns={handleUpdateGiftRecordColumns}
+          onMaskAmountsChange={handleMaskAmountsChange}
           onImportRecords={(currentEventId, file) => runImport(file)}
           onConfirmImportDuplicates={() => {
             if (pendingImport) {

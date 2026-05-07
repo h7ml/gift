@@ -35,6 +35,7 @@ import { zhCN } from 'date-fns/locale'
 import type { Event, EventAttachment, GiftRecord, Statistics } from '@/lib/types'
 import { EVENT_TYPE_ICONS } from '@/lib/types'
 import type { GiftRecordColumnKey } from '@/lib/gift-record-columns.js'
+import { AmountVisibilityToggle } from './amount-visibility-toggle'
 import { StatisticsCards } from './statistics-cards'
 import { RecordsTable } from './records-table'
 import { RecordFormDialog } from './record-form-dialog'
@@ -52,6 +53,7 @@ interface EventDetailProps {
   statistics: Statistics
   duplicateImport?: { duplicateCount: number; totalCount: number } | null
   giftRecordColumns: GiftRecordColumnKey[]
+  maskAmounts: boolean
   section?: 'overview' | 'notes' | 'records'
   onBack: () => void
   onAddRecord: (data: Omit<GiftRecord, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
@@ -59,6 +61,7 @@ interface EventDetailProps {
   onDeleteRecord: (id: string) => Promise<void>
   onDeleteRecords: (ids: string[]) => Promise<void>
   onUpdateGiftRecordColumns: (columns: GiftRecordColumnKey[]) => Promise<GiftRecordColumnKey[]>
+  onMaskAmountsChange: (maskAmounts: boolean) => void
   onImportRecords: (eventId: string, file: File) => Promise<void>
   onConfirmImportDuplicates?: () => void
   onCancelImportDuplicates?: () => void
@@ -78,6 +81,7 @@ export function EventDetail({
   statistics, 
   duplicateImport,
   giftRecordColumns,
+  maskAmounts,
   section = 'overview',
   onBack,
   onAddRecord,
@@ -85,6 +89,7 @@ export function EventDetail({
   onDeleteRecord,
   onDeleteRecords,
   onUpdateGiftRecordColumns,
+  onMaskAmountsChange,
   onImportRecords,
   onConfirmImportDuplicates,
   onCancelImportDuplicates,
@@ -217,7 +222,7 @@ export function EventDetail({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <Button variant="ghost" size="icon" onClick={onBack}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -246,9 +251,15 @@ export function EventDetail({
             </div>
           </div>
         </div>
+        <AmountVisibilityToggle
+          maskAmounts={maskAmounts}
+          onMaskAmountsChange={onMaskAmountsChange}
+        />
       </div>
 
-      {showStatistics && <StatisticsCards statistics={statistics} />}
+      {showStatistics && (
+        <StatisticsCards statistics={statistics} maskAmounts={maskAmounts} />
+      )}
 
       {showNotes && (
       <Card className="border-primary/10">
@@ -556,6 +567,7 @@ export function EventDetail({
               records={records}
               visibleColumns={giftRecordColumns}
               onVisibleColumnsChange={onUpdateGiftRecordColumns}
+              maskAmounts={maskAmounts}
               onEdit={handleEditRecord}
               onDelete={onDeleteRecord}
               onDeleteMany={onDeleteRecords}

@@ -23,7 +23,7 @@ interface RecordFormDialogProps {
   onSubmit: (data: Omit<GiftRecord, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
 }
 
-const QUICK_AMOUNTS = [200, 500, 600, 800, 1000, 1200, 1600, 2000]
+const QUICK_AMOUNTS = [100,200,300, 500, 600, 800, 1000, 1200, 1600, 2000]
 
 export function RecordFormDialog({ open, onOpenChange, eventId, record, onSubmit }: RecordFormDialogProps) {
   const [guestName, setGuestName] = useState('')

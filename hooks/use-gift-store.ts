@@ -17,6 +17,7 @@ export function useGiftStore() {
   const [attachments, setAttachments] = useState<EventAttachment[]>([])
   const [giftRecordColumns, setGiftRecordColumnsState] =
     useState<GiftRecordColumnKey[]>(DEFAULT_GIFT_RECORD_COLUMNS)
+  const [maskAmounts, setMaskAmountsState] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
   const loadData = useCallback(async () => {
@@ -33,6 +34,7 @@ export function useGiftStore() {
         setRecords([])
         setAttachments([])
         setGiftRecordColumnsState(DEFAULT_GIFT_RECORD_COLUMNS)
+        setMaskAmountsState(false)
         return
       }
 
@@ -55,6 +57,7 @@ export function useGiftStore() {
       setGiftRecordColumnsState(
         normalizeGiftRecordColumns(preferencesData.preferences?.giftRecordColumns)
       )
+      setMaskAmountsState(preferencesData.preferences?.maskAmounts === true)
     } catch (error) {
       console.error('加载数据失败:', error)
     } finally {
@@ -148,6 +151,27 @@ export function useGiftStore() {
 
         setGiftRecordColumnsState(savedColumns)
         return savedColumns
+      } catch (error) {
+        await loadData()
+        throw error
+      }
+    },
+    [loadData]
+  )
+
+  const setMaskAmounts = useCallback(
+    async (nextMaskAmounts: boolean) => {
+      setMaskAmountsState(nextMaskAmounts)
+
+      try {
+        const data = await requestJson('/api/preferences', {
+          method: 'PUT',
+          body: { maskAmounts: nextMaskAmounts },
+        })
+        const savedMaskAmounts = data.preferences?.maskAmounts === true
+
+        setMaskAmountsState(savedMaskAmounts)
+        return savedMaskAmounts
       } catch (error) {
         await loadData()
         throw error
@@ -280,6 +304,7 @@ export function useGiftStore() {
     records,
     attachments,
     giftRecordColumns,
+    maskAmounts,
     isLoading,
     addEvent,
     updateEvent,
@@ -288,6 +313,7 @@ export function useGiftStore() {
     updateRecord,
     deleteRecord,
     setGiftRecordColumns,
+    setMaskAmounts,
     importRecordsFromExcel,
     getRecordsByEvent,
     getAttachmentsByEvent,

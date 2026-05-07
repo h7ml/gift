@@ -15,11 +15,13 @@ import { zhCN } from 'date-fns/locale'
 import type { Event, GiftRecord } from '@/lib/types'
 import { EVENT_TYPE_ICONS } from '@/lib/types'
 import { exportToExcel, exportToPDF } from '@/lib/export'
+import { formatDisplayMoney } from '@/lib/money-display'
 
 interface EventCardProps {
   event: Event
   records: GiftRecord[]
   selected: boolean
+  maskAmounts?: boolean
   onSelectChange: (checked: boolean) => void
   onSelect: () => void
   onEdit: () => void
@@ -30,6 +32,7 @@ export function EventCard({
   event,
   records,
   selected,
+  maskAmounts = false,
   onSelectChange,
   onSelect,
   onEdit,
@@ -131,7 +134,7 @@ export function EventCard({
               <div className="text-right">
                 <span className="text-sm text-muted-foreground">合计</span>
                 <span className="text-xl font-bold text-primary ml-2">
-                  ¥{totalAmount.toLocaleString()}
+                  {formatDisplayMoney(totalAmount, maskAmounts)}
                 </span>
               </div>
             </div>

@@ -2,17 +2,22 @@
 
 import { Card, CardContent } from '@/components/ui/card'
 import { Users, Wallet, TrendingUp, Award } from 'lucide-react'
+import { formatDisplayMoney } from '@/lib/money-display'
 import type { Statistics } from '@/lib/types'
 
 interface StatisticsCardsProps {
   statistics: Statistics
+  maskAmounts?: boolean
 }
 
-export function StatisticsCards({ statistics }: StatisticsCardsProps) {
+export function StatisticsCards({
+  statistics,
+  maskAmounts = false,
+}: StatisticsCardsProps) {
   const stats = [
     {
       label: '总金额',
-      value: `¥${statistics.totalAmount.toLocaleString()}`,
+      value: formatDisplayMoney(statistics.totalAmount, maskAmounts),
       icon: Wallet,
       color: 'text-primary'
     },
@@ -24,13 +29,13 @@ export function StatisticsCards({ statistics }: StatisticsCardsProps) {
     },
     {
       label: '人均礼金',
-      value: `¥${statistics.averageAmount.toLocaleString()}`,
+      value: formatDisplayMoney(statistics.averageAmount, maskAmounts),
       icon: TrendingUp,
       color: 'text-muted-foreground'
     },
     {
       label: '最高礼金',
-      value: `¥${statistics.maxAmount.toLocaleString()}`,
+      value: formatDisplayMoney(statistics.maxAmount, maskAmounts),
       icon: Award,
       color: 'text-primary'
     }

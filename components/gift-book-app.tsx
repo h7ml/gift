@@ -20,11 +20,13 @@ import { useAuthStore } from '@/hooks/use-auth-store'
 import { Header } from './header'
 import { StatisticsCards } from './statistics-cards'
 import { EventCard } from './event-card'
+import { AmountVisibilityToggle } from './amount-visibility-toggle'
 import { EventFormDialog } from './event-form-dialog'
 import { EmptyState } from './empty-state'
 import { Spinner } from '@/components/ui/spinner'
 import { exportAllToExcel } from '@/lib/export'
 import { buildPageTitle } from '@/lib/page-title.js'
+import { notifySuccess } from '@/lib/success-feedback.js'
 import type { Event } from '@/lib/types'
 
 export function GiftBookApp() {
@@ -35,9 +37,11 @@ export function GiftBookApp() {
     events,
     records,
     isLoading,
+    maskAmounts,
     addEvent,
     updateEvent,
     deleteEvent,
+    setMaskAmounts,
     getRecordsByEvent,
     getStatistics
   } = useGiftStore()
@@ -60,7 +64,7 @@ export function GiftBookApp() {
   const handleCreateEvent = async (data: Omit<Event, 'id' | 'createdAt'>) => {
     try {
       await addEvent(data)
-      toast.success('活动创建成功')
+      notifySuccess('活动创建成功')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '活动创建失败')
     }
@@ -70,7 +74,7 @@ export function GiftBookApp() {
     if (editingEvent) {
       try {
         await updateEvent(editingEvent.id, data)
-        toast.success('活动更新成功')
+        notifySuccess('活动更新成功')
       } catch (error) {
         toast.error(error instanceof Error ? error.message : '活动更新失败')
       }
@@ -82,7 +86,7 @@ export function GiftBookApp() {
     if (deleteEventId) {
       try {
         await deleteEvent(deleteEventId)
-        toast.success('活动已删除')
+        notifySuccess('活动已删除')
       } catch (error) {
         toast.error(error instanceof Error ? error.message : '活动删除失败')
       }
@@ -108,7 +112,7 @@ export function GiftBookApp() {
       return
     }
     exportAllToExcel(events, records)
-    toast.success('导出成功')
+    notifySuccess('导出成功')
   }
 
   const selectedEvents = events.filter((event) => selectedEventIds.includes(event.id))
@@ -123,7 +127,7 @@ export function GiftBookApp() {
       selectedEvents,
       records.filter((record) => selectedEventIds.includes(record.eventId))
     )
-    toast.success(`已导出 ${selectedEvents.length} 个活动`)
+    notifySuccess(`已导出 ${selectedEvents.length} 个活动`)
   }
 
   const handleSelectEvent = (id: string, checked: boolean) => {
@@ -134,6 +138,14 @@ export function GiftBookApp() {
 
   const handleSelectAllEvents = (checked: boolean) => {
     setSelectedEventIds(checked ? events.map((event) => event.id) : [])
+  }
+
+  const handleMaskAmountsChange = async (checked: boolean) => {
+    try {
+      await setMaskAmounts(checked)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '金额显示配置保存失败')
+    }
   }
 
   if (authLoading || isLoading) {
@@ -164,7 +176,11 @@ export function GiftBookApp() {
                   管理您的所有礼金往来记录
                 </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                <AmountVisibilityToggle
+                  maskAmounts={maskAmounts}
+                  onMaskAmountsChange={handleMaskAmountsChange}
+                />
                 {selectedEventIds.length > 0 && (
                   <Button variant="outline" onClick={handleExportSelected}>
                     <FileSpreadsheet className="h-4 w-4 mr-2" />
@@ -185,7 +201,7 @@ export function GiftBookApp() {
               </div>
             </div>
 
-            <StatisticsCards statistics={getStatistics()} />
+            <StatisticsCards statistics={getStatistics()} maskAmounts={maskAmounts} />
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg border bg-secondary/30 px-3 py-2">
               <label className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -218,6 +234,7 @@ export function GiftBookApp() {
                   event={event}
                   records={getRecordsByEvent(event.id)}
                   selected={selectedEventIds.includes(event.id)}
+                  maskAmounts={maskAmounts}
                   onSelectChange={(checked) => handleSelectEvent(event.id, checked)}
                   onSelect={() => router.push(`/events/${event.id}`)}
                   onEdit={() => handleEditEvent(event)}
