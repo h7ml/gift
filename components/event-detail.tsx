@@ -29,6 +29,7 @@ import {
   Settings,
   ChevronDown,
   ChevronRight,
+  Files,
   UserRound
 } from 'lucide-react'
 import { format } from 'date-fns'
@@ -45,6 +46,7 @@ import { EventLedgerWorkspace } from './event-ledger-workspace'
 import { EventFormDialog } from './event-form-dialog'
 import { exportToExcel, exportToPDF } from '@/lib/export'
 import { getEventDetailSections } from '@/lib/event-detail-sections.js'
+import { filesFromDataTransfer, filesFromFileList } from '@/lib/file-list.js'
 import {
   PAGE_SIZE_OPTIONS,
   getPaginationState,
@@ -120,6 +122,7 @@ export function EventDetail({
   const [selectedAttachmentIds, setSelectedAttachmentIds] = useState<string[]>([])
   const [batchDeleteAttachmentsOpen, setBatchDeleteAttachmentsOpen] = useState(false)
   const [attachmentsExpanded, setAttachmentsExpanded] = useState(true)
+  const [isAttachmentDragActive, setIsAttachmentDragActive] = useState(false)
   const [recordsExpanded, setRecordsExpanded] = useState(true)
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -146,16 +149,36 @@ export function EventDetail({
     }
   }
 
-  const handleAttachmentChange = async (
-    changeEvent: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const files = Array.from(changeEvent.target.files ?? [])
-
+  const uploadAttachmentFiles = async (files: File[]) => {
     if (files.length > 0) {
       await onUploadAttachments(event.id, files)
     }
+  }
+
+  const handleAttachmentChange = async (
+    changeEvent: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    await uploadAttachmentFiles(filesFromFileList(changeEvent.target.files))
 
     changeEvent.target.value = ''
+  }
+
+  const handleAttachmentDragOver = (dragEvent: React.DragEvent<HTMLDivElement>) => {
+    dragEvent.preventDefault()
+    dragEvent.dataTransfer.dropEffect = 'copy'
+    setIsAttachmentDragActive(true)
+  }
+
+  const handleAttachmentDragLeave = (dragEvent: React.DragEvent<HTMLDivElement>) => {
+    if (!dragEvent.currentTarget.contains(dragEvent.relatedTarget as Node | null)) {
+      setIsAttachmentDragActive(false)
+    }
+  }
+
+  const handleAttachmentDrop = async (dropEvent: React.DragEvent<HTMLDivElement>) => {
+    dropEvent.preventDefault()
+    setIsAttachmentDragActive(false)
+    await uploadAttachmentFiles(filesFromDataTransfer(dropEvent.dataTransfer))
   }
 
   const handleExcelChange = async (
@@ -379,13 +402,43 @@ export function EventDetail({
                 onClick={() => fileInputRef.current?.click()}
               >
                 <Upload className="h-4 w-4 mr-2" />
-                上传文件
+                批量上传
               </Button>
             </div>
           </div>
         </CardHeader>
         {attachmentsExpanded && (
           <CardContent>
+            <div
+              className={[
+                'mb-4 flex min-h-36 flex-col items-center justify-center rounded-lg border-2 border-dashed px-4 py-6 text-center transition-colors',
+                isAttachmentDragActive
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-border bg-secondary/20 text-muted-foreground',
+              ].join(' ')}
+              onDragOver={handleAttachmentDragOver}
+              onDragEnter={handleAttachmentDragOver}
+              onDragLeave={handleAttachmentDragLeave}
+              onDrop={handleAttachmentDrop}
+            >
+              <Files className="mb-3 h-8 w-8" />
+              <p className="text-sm font-medium text-foreground">
+                拖拽文件到这里上传
+              </p>
+              <p className="mt-1 text-xs">
+                支持图片、文档、表格、压缩包等格式，单个文件不超过 20MB
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-4"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                选择多个文件
+              </Button>
+            </div>
             {attachments.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <p>暂无手记文件</p>
