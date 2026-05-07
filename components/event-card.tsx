@@ -50,9 +50,9 @@ export function EventCard({
     exportToExcel(records, event)
   }
 
-  const handleExportPDF = (e: React.MouseEvent) => {
+  const handleExportPDF = async (e: React.MouseEvent) => {
     e.stopPropagation()
-    exportToPDF(records, event, {
+    await exportToPDF(records, event, {
       coverImageDataUrl: pdfCoverImageDataUrl,
       interfaceStyle,
     })

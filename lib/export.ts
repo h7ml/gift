@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import type { Event, GiftRecord } from './types'
 import { formatChineseMoney } from './chinese-money.js'
+import { PDF_CHINESE_FONT_NAME, registerPdfChineseFont } from './pdf-font.js'
 
 interface ExportPdfOptions {
   coverImageDataUrl?: string | null
@@ -81,12 +82,13 @@ export function exportToExcel(records: GiftRecord[], event: Event) {
   XLSX.writeFile(workbook, fileName)
 }
 
-export function exportToPDF(
+export async function exportToPDF(
   records: GiftRecord[],
   event: Event,
   options: ExportPdfOptions = {}
 ) {
   const doc = new jsPDF()
+  const fontName = await registerPdfChineseFont(doc)
   const palette =
     options.interfaceStyle === 'gray'
       ? {
@@ -137,7 +139,7 @@ export function exportToPDF(
     record.homeAddress || '-',
     `¥${record.amount.toLocaleString()}`,
     formatChineseMoney(record.amount),
-    record.returnGiftDone ? 'Yes' : 'No',
+    record.returnGiftDone ? '是' : '否',
     typeof record.returnGiftAmount === 'number'
       ? `¥${record.returnGiftAmount.toLocaleString()}`
       : '-',
@@ -151,7 +153,7 @@ export function exportToPDF(
   const totalAmount = records.reduce((sum, r) => sum + r.amount, 0)
   tableData.push([
     '',
-    'Total',
+    '合计',
     '-',
     '-',
     `¥${totalAmount.toLocaleString()}`,
@@ -161,18 +163,20 @@ export function exportToPDF(
     '-',
     '-',
     '-',
-    `${records.length} guests`
+    `共 ${records.length} 人`
   ])
 
   autoTable(doc, {
-    head: [['#', 'Name', 'Phone', 'Address', 'Amount', 'Uppercase', 'Returned', 'Return Amount', 'Return Note', 'Gift', 'Date', 'Note']],
+    head: [['序号', '姓名', '电话', '地址', '金额', '金额大写', '已还礼', '还礼金额', '还礼备注', '礼品', '日期', '备注']],
     body: tableData,
     startY,
     styles: {
+      font: fontName,
       fontSize: 10,
       cellPadding: 3
     },
     headStyles: {
+      font: fontName,
       fillColor: palette.head,
       textColor: 255
     },
@@ -180,6 +184,7 @@ export function exportToPDF(
       fillColor: palette.alternate
     },
     footStyles: {
+      font: fontName,
       fillColor: palette.foot,
       textColor: palette.footText,
       fontStyle: 'bold'
@@ -190,10 +195,11 @@ export function exportToPDF(
   const pageCount = doc.getNumberOfPages()
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i)
+    doc.setFont(PDF_CHINESE_FONT_NAME, 'normal')
     doc.setFontSize(10)
     doc.setTextColor(150)
     doc.text(
-      `Generated on ${format(new Date(), 'yyyy-MM-dd HH:mm')} - Page ${i}/${pageCount}`,
+      `导出时间 ${format(new Date(), 'yyyy-MM-dd HH:mm')} - 第 ${i}/${pageCount} 页`,
       105,
       doc.internal.pageSize.height - 10,
       { align: 'center' }

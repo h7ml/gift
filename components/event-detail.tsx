@@ -181,6 +181,13 @@ export function EventDetail({
     await uploadAttachmentFiles(filesFromDataTransfer(dropEvent.dataTransfer))
   }
 
+  const handleExportPDF = async (selectedRecords = records) => {
+    await exportToPDF(selectedRecords, event, {
+      coverImageDataUrl: pdfCoverImageDataUrl,
+      interfaceStyle,
+    })
+  }
+
   const handleExcelChange = async (
     changeEvent: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -317,12 +324,7 @@ export function EventDetail({
             onManageRecordsHref={`/events/${event.id}/records`}
             onImportExcel={() => excelInputRef.current?.click()}
             onExportExcel={() => exportToExcel(records, event)}
-            onExportPDF={() =>
-              exportToPDF(records, event, {
-                coverImageDataUrl: pdfCoverImageDataUrl,
-                interfaceStyle,
-              })
-            }
+            onExportPDF={() => handleExportPDF()}
             visibleColumns={giftRecordColumns}
             onVisibleColumnsChange={onUpdateGiftRecordColumns}
             onDeleteRecord={onDeleteRecord}
@@ -330,12 +332,7 @@ export function EventDetail({
             onExportSelectedExcel={(selectedRecords) =>
               exportToExcel(selectedRecords, event)
             }
-            onExportSelectedPDF={(selectedRecords) =>
-              exportToPDF(selectedRecords, event, {
-                coverImageDataUrl: pdfCoverImageDataUrl,
-                interfaceStyle,
-              })
-            }
+            onExportSelectedPDF={handleExportPDF}
           />
         </>
       )}
@@ -659,12 +656,7 @@ export function EventDetail({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() =>
-                  exportToPDF(records, event, {
-                    coverImageDataUrl: pdfCoverImageDataUrl,
-                    interfaceStyle,
-                  })
-                }
+                onClick={() => handleExportPDF()}
                 disabled={records.length === 0}
               >
                 <FileText className="h-4 w-4 mr-2" />
@@ -694,12 +686,7 @@ export function EventDetail({
               onExportSelectedExcel={(selectedRecords) =>
                 exportToExcel(selectedRecords, event)
               }
-              onExportSelectedPDF={(selectedRecords) =>
-                exportToPDF(selectedRecords, event, {
-                  coverImageDataUrl: pdfCoverImageDataUrl,
-                  interfaceStyle,
-                })
-              }
+              onExportSelectedPDF={handleExportPDF}
             />
           </CardContent>
         )}
