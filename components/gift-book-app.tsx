@@ -45,6 +45,7 @@ export function GiftBookApp() {
   const [eventDialogOpen, setEventDialogOpen] = useState(false)
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
   const [deleteEventId, setDeleteEventId] = useState<string | null>(null)
+  const [selectedEventIds, setSelectedEventIds] = useState<string[]>([])
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -110,6 +111,31 @@ export function GiftBookApp() {
     toast.success('导出成功')
   }
 
+  const selectedEvents = events.filter((event) => selectedEventIds.includes(event.id))
+
+  const handleExportSelected = () => {
+    if (selectedEvents.length === 0) {
+      toast.error('请选择要导出的活动')
+      return
+    }
+
+    exportAllToExcel(
+      selectedEvents,
+      records.filter((record) => selectedEventIds.includes(record.eventId))
+    )
+    toast.success(`已导出 ${selectedEvents.length} 个活动`)
+  }
+
+  const handleSelectEvent = (id: string, checked: boolean) => {
+    setSelectedEventIds((ids) =>
+      checked ? Array.from(new Set([...ids, id])) : ids.filter((item) => item !== id)
+    )
+  }
+
+  const handleSelectAllEvents = (checked: boolean) => {
+    setSelectedEventIds(checked ? events.map((event) => event.id) : [])
+  }
+
   if (authLoading || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -139,6 +165,12 @@ export function GiftBookApp() {
                 </p>
               </div>
               <div className="flex gap-2">
+                {selectedEventIds.length > 0 && (
+                  <Button variant="outline" onClick={handleExportSelected}>
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    导出选中
+                  </Button>
+                )}
                 <Button variant="outline" onClick={handleExportAll}>
                   <FileSpreadsheet className="h-4 w-4 mr-2" />
                   导出全部
@@ -155,12 +187,38 @@ export function GiftBookApp() {
 
             <StatisticsCards statistics={getStatistics()} />
 
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg border bg-secondary/30 px-3 py-2">
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={
+                    events.length > 0 &&
+                    events.every((event) => selectedEventIds.includes(event.id))
+                  }
+                  onChange={(event) => handleSelectAllEvents(event.target.checked)}
+                />
+                选择全部活动
+              </label>
+              {selectedEventIds.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    已选择 {selectedEventIds.length} 个活动
+                  </span>
+                  <Button variant="ghost" size="sm" onClick={() => setSelectedEventIds([])}>
+                    清空选择
+                  </Button>
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {events.map(event => (
                 <EventCard
                   key={event.id}
                   event={event}
                   records={getRecordsByEvent(event.id)}
+                  selected={selectedEventIds.includes(event.id)}
+                  onSelectChange={(checked) => handleSelectEvent(event.id, checked)}
                   onSelect={() => router.push(`/events/${event.id}`)}
                   onEdit={() => handleEditEvent(event)}
                   onDelete={() => setDeleteEventId(event.id)}

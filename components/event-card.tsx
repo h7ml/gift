@@ -19,12 +19,22 @@ import { exportToExcel, exportToPDF } from '@/lib/export'
 interface EventCardProps {
   event: Event
   records: GiftRecord[]
+  selected: boolean
+  onSelectChange: (checked: boolean) => void
   onSelect: () => void
   onEdit: () => void
   onDelete: () => void
 }
 
-export function EventCard({ event, records, onSelect, onEdit, onDelete }: EventCardProps) {
+export function EventCard({
+  event,
+  records,
+  selected,
+  onSelectChange,
+  onSelect,
+  onEdit,
+  onDelete,
+}: EventCardProps) {
   const totalAmount = records.reduce((sum, r) => sum + r.amount, 0)
   const icon = EVENT_TYPE_ICONS[event.type]
 
@@ -46,6 +56,13 @@ export function EventCard({ event, records, onSelect, onEdit, onDelete }: EventC
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              checked={selected}
+              aria-label={`选择 ${event.name}`}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => onSelectChange(e.target.checked)}
+            />
             <div className="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center text-2xl">
               {icon}
             </div>

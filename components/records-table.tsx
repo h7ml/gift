@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   Table,
@@ -30,7 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { MoreVertical, Edit, Trash2, Search, ArrowUpDown, Columns3 } from 'lucide-react'
+import { MoreVertical, Edit, Trash2, Search, ArrowUpDown, Columns3, FileSpreadsheet, FileText } from 'lucide-react'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { formatChineseMoney } from '@/lib/chinese-money.js'
@@ -50,6 +50,9 @@ interface RecordsTableProps {
   records: GiftRecord[]
   onEdit: (record: GiftRecord) => void
   onDelete: (id: string) => Promise<void>
+  onDeleteMany: (ids: string[]) => Promise<void>
+  onExportSelectedExcel: (records: GiftRecord[]) => void
+  onExportSelectedPDF: (records: GiftRecord[]) => void
 }
 
 type SortField = 'guestName' | 'amount' | 'date' | 'createdAt' | 'updatedAt'
@@ -124,6 +127,9 @@ export function RecordsTable({
   onVisibleColumnsChange,
   onEdit,
   onDelete,
+  onDeleteMany,
+  onExportSelectedExcel,
+  onExportSelectedPDF,
 }: RecordsTableProps & {
   visibleColumns: ColumnKey[]
   onVisibleColumnsChange: (columns: ColumnKey[]) => Promise<ColumnKey[]>
@@ -132,6 +138,8 @@ export function RecordsTable({
   const [sortField, setSortField] = useState<SortField>('date')
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [batchDeleteOpen, setBatchDeleteOpen] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [isSavingColumns, setIsSavingColumns] = useState(false)
@@ -182,12 +190,45 @@ export function RecordsTable({
     pageSize,
   })
   const paginatedRecords = paginateItems(filteredAndSortedRecords, pagination)
+  const selectedRecords = records.filter((record) => selectedIds.includes(record.id))
+  const currentPageIds = paginatedRecords.map((record) => record.id)
+  const isCurrentPageSelected =
+    currentPageIds.length > 0 &&
+    currentPageIds.every((id) => selectedIds.includes(id))
+
+  useEffect(() => {
+    setSelectedIds((ids) =>
+      ids.filter((id) => records.some((record) => record.id === id))
+    )
+  }, [records])
 
   const handleConfirmDelete = async () => {
     if (deleteId) {
       await onDelete(deleteId)
       setDeleteId(null)
     }
+  }
+
+  const handleConfirmBatchDelete = async () => {
+    await onDeleteMany(selectedIds)
+    setSelectedIds([])
+    setBatchDeleteOpen(false)
+  }
+
+  const handleCurrentPageSelection = (checked: boolean) => {
+    setSelectedIds((ids) => {
+      if (checked) {
+        return Array.from(new Set([...ids, ...currentPageIds]))
+      }
+
+      return ids.filter((id) => !currentPageIds.includes(id))
+    })
+  }
+
+  const handleRowSelection = (id: string, checked: boolean) => {
+    setSelectedIds((ids) =>
+      checked ? Array.from(new Set([...ids, id])) : ids.filter((item) => item !== id)
+    )
   }
 
   const handleVisibleColumnsChange = async (columns: ColumnKey[]) => {
@@ -273,10 +314,58 @@ export function RecordsTable({
         </DropdownMenu>
       </div>
 
+      {selectedIds.length > 0 && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border bg-secondary/30 px-3 py-2">
+          <span className="text-sm text-muted-foreground">
+            已选择 {selectedIds.length} 条记录
+          </span>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onExportSelectedExcel(selectedRecords)}
+            >
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              导出 Excel
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onExportSelectedPDF(selectedRecords)}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              导出 PDF
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive hover:text-destructive"
+              onClick={() => setBatchDeleteOpen(true)}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              批量删除
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>
+              清空选择
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="border rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="bg-secondary/50">
+              <TableHead className="w-[44px] text-center">
+                <input
+                  type="checkbox"
+                  checked={isCurrentPageSelected}
+                  aria-label="选择当前页记录"
+                  onChange={(event) =>
+                    handleCurrentPageSelection(event.target.checked)
+                  }
+                />
+              </TableHead>
               <TableHead className="w-[50px] text-center">#</TableHead>
               {activeColumns.map((column) => (
                 <TableHead key={column.key}>
@@ -301,6 +390,16 @@ export function RecordsTable({
           <TableBody>
             {paginatedRecords.map((record, index) => (
               <TableRow key={record.id} className="hover:bg-secondary/30">
+                <TableCell className="text-center">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(record.id)}
+                    aria-label={`选择 ${record.guestName}`}
+                    onChange={(event) =>
+                      handleRowSelection(record.id, event.target.checked)
+                    }
+                  />
+                </TableCell>
                 <TableCell className="text-center text-muted-foreground">
                   {(pagination.page - 1) * pagination.pageSize + index + 1}
                 </TableCell>
@@ -396,6 +495,26 @@ export function RecordsTable({
             <AlertDialogCancel>取消</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={batchDeleteOpen} onOpenChange={setBatchDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确认批量删除</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要删除选中的 {selectedIds.length} 条礼金记录吗？此操作无法撤销。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmBatchDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               删除

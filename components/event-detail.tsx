@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -57,6 +57,7 @@ interface EventDetailProps {
   onAddRecord: (data: Omit<GiftRecord, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
   onUpdateRecord: (id: string, data: Partial<GiftRecord>) => Promise<void>
   onDeleteRecord: (id: string) => Promise<void>
+  onDeleteRecords: (ids: string[]) => Promise<void>
   onUpdateGiftRecordColumns: (columns: GiftRecordColumnKey[]) => Promise<GiftRecordColumnKey[]>
   onImportRecords: (eventId: string, file: File) => Promise<void>
   onConfirmImportDuplicates?: () => void
@@ -67,6 +68,7 @@ interface EventDetailProps {
     data: Pick<EventAttachment, 'displayName' | 'note'>
   ) => Promise<void>
   onDeleteAttachment: (id: string) => Promise<void>
+  onDeleteAttachments: (ids: string[]) => Promise<void>
 }
 
 export function EventDetail({ 
@@ -81,13 +83,15 @@ export function EventDetail({
   onAddRecord,
   onUpdateRecord,
   onDeleteRecord,
+  onDeleteRecords,
   onUpdateGiftRecordColumns,
   onImportRecords,
   onConfirmImportDuplicates,
   onCancelImportDuplicates,
   onUploadAttachments,
   onUpdateAttachment,
-  onDeleteAttachment
+  onDeleteAttachment,
+  onDeleteAttachments
 }: EventDetailProps) {
   const [recordDialogOpen, setRecordDialogOpen] = useState(false)
   const [editingRecord, setEditingRecord] = useState<GiftRecord | null>(null)
@@ -96,6 +100,8 @@ export function EventDetail({
   const [attachmentNote, setAttachmentNote] = useState('')
   const [attachmentPage, setAttachmentPage] = useState(1)
   const [attachmentPageSize, setAttachmentPageSize] = useState(10)
+  const [selectedAttachmentIds, setSelectedAttachmentIds] = useState<string[]>([])
+  const [batchDeleteAttachmentsOpen, setBatchDeleteAttachmentsOpen] = useState(false)
   const [attachmentsExpanded, setAttachmentsExpanded] = useState(true)
   const [recordsExpanded, setRecordsExpanded] = useState(true)
   const cameraInputRef = useRef<HTMLInputElement>(null)
@@ -172,10 +178,42 @@ export function EventDetail({
     pageSize: attachmentPageSize,
   })
   const paginatedAttachments = paginateItems(attachments, attachmentPagination)
+  const currentPageAttachmentIds = paginatedAttachments.map((attachment) => attachment.id)
+  const isCurrentAttachmentPageSelected =
+    currentPageAttachmentIds.length > 0 &&
+    currentPageAttachmentIds.every((id) => selectedAttachmentIds.includes(id))
+
+  useEffect(() => {
+    setSelectedAttachmentIds((ids) =>
+      ids.filter((id) => attachments.some((attachment) => attachment.id === id))
+    )
+  }, [attachments])
   const showStatistics = section === 'overview'
   const showNotes = section === 'overview' || section === 'notes'
   const showRecords = section === 'overview' || section === 'records'
   const showSectionLinks = section === 'overview'
+
+  const handleAttachmentPageSelection = (checked: boolean) => {
+    setSelectedAttachmentIds((ids) => {
+      if (checked) {
+        return Array.from(new Set([...ids, ...currentPageAttachmentIds]))
+      }
+
+      return ids.filter((id) => !currentPageAttachmentIds.includes(id))
+    })
+  }
+
+  const handleAttachmentSelection = (id: string, checked: boolean) => {
+    setSelectedAttachmentIds((ids) =>
+      checked ? Array.from(new Set([...ids, id])) : ids.filter((item) => item !== id)
+    )
+  }
+
+  const handleBatchDeleteAttachments = async () => {
+    await onDeleteAttachments(selectedAttachmentIds)
+    setSelectedAttachmentIds([])
+    setBatchDeleteAttachmentsOpen(false)
+  }
 
   return (
     <div className="space-y-6">
@@ -280,59 +318,109 @@ export function EventDetail({
                 <p>暂无手记文件</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {paginatedAttachments.map((attachment) => (
-                  <div
-                    key={attachment.id}
-                    className="border rounded-lg p-3 space-y-3 bg-card"
-                  >
-                    {attachment.mimeType.startsWith('image/') && (
-                      <a href={attachment.url} target="_blank" rel="noreferrer">
-                        <img
-                          src={attachment.url}
-                          alt={attachment.originalName}
-                          className="w-full aspect-video object-cover rounded-md border"
-                        />
-                      </a>
-                    )}
-                    <div className="min-w-0">
-                      <p className="font-medium truncate">
-                        {attachment.displayName || attachment.originalName}
-                      </p>
-                      {attachment.note && (
-                        <p className="text-xs text-muted-foreground truncate">
-                          {attachment.note}
-                        </p>
-                      )}
-                      <p className="text-xs text-muted-foreground">
-                        {formatFileSize(attachment.sizeBytes)}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button asChild variant="outline" size="sm" className="flex-1">
-                        <a href={attachment.url} target="_blank" rel="noreferrer">
-                          <Download className="h-4 w-4 mr-2" />
-                          查看
-                        </a>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEditAttachment(attachment)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg border bg-secondary/30 px-3 py-2">
+                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={isCurrentAttachmentPageSelected}
+                      onChange={(event) =>
+                        handleAttachmentPageSelection(event.target.checked)
+                      }
+                    />
+                    选择当前页
+                  </label>
+                  {selectedAttachmentIds.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        已选择 {selectedAttachmentIds.length} 个文件
+                      </span>
                       <Button
                         variant="outline"
                         size="sm"
                         className="text-destructive hover:text-destructive"
-                        onClick={() => onDeleteAttachment(attachment.id)}
+                        onClick={() => setBatchDeleteAttachmentsOpen(true)}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        批量删除
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedAttachmentIds([])}
+                      >
+                        清空选择
                       </Button>
                     </div>
-                  </div>
-                ))}
+                  )}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {paginatedAttachments.map((attachment) => (
+                    <div
+                      key={attachment.id}
+                      className="border rounded-lg p-3 space-y-3 bg-card"
+                    >
+                      <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <input
+                          type="checkbox"
+                          checked={selectedAttachmentIds.includes(attachment.id)}
+                          onChange={(event) =>
+                            handleAttachmentSelection(
+                              attachment.id,
+                              event.target.checked
+                            )
+                          }
+                        />
+                        选择
+                      </label>
+                      {attachment.mimeType.startsWith('image/') && (
+                        <a href={attachment.url} target="_blank" rel="noreferrer">
+                          <img
+                            src={attachment.url}
+                            alt={attachment.originalName}
+                            className="w-full aspect-video object-cover rounded-md border"
+                          />
+                        </a>
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">
+                          {attachment.displayName || attachment.originalName}
+                        </p>
+                        {attachment.note && (
+                          <p className="text-xs text-muted-foreground truncate">
+                            {attachment.note}
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          {formatFileSize(attachment.sizeBytes)}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button asChild variant="outline" size="sm" className="flex-1">
+                          <a href={attachment.url} target="_blank" rel="noreferrer">
+                            <Download className="h-4 w-4 mr-2" />
+                            查看
+                          </a>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditAttachment(attachment)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => onDeleteAttachment(attachment.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
             {attachments.length > 0 && (
@@ -470,6 +558,13 @@ export function EventDetail({
               onVisibleColumnsChange={onUpdateGiftRecordColumns}
               onEdit={handleEditRecord}
               onDelete={onDeleteRecord}
+              onDeleteMany={onDeleteRecords}
+              onExportSelectedExcel={(selectedRecords) =>
+                exportToExcel(selectedRecords, event)
+              }
+              onExportSelectedPDF={(selectedRecords) =>
+                exportToPDF(selectedRecords, event)
+              }
             />
           </CardContent>
         )}
@@ -529,6 +624,36 @@ export function EventDetail({
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={batchDeleteAttachmentsOpen}
+        onOpenChange={setBatchDeleteAttachmentsOpen}
+      >
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="text-primary">确认批量删除</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              确定要删除选中的 {selectedAttachmentIds.length} 个手记文件吗？此操作无法撤销。
+            </p>
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setBatchDeleteAttachmentsOpen(false)}
+              >
+                取消
+              </Button>
+              <Button
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={handleBatchDeleteAttachments}
+              >
+                删除
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 

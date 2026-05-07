@@ -94,6 +94,15 @@ export function EventDetailPage({
     }
   }
 
+  const handleDeleteRecords = async (ids: string[]) => {
+    try {
+      await Promise.all(ids.map((id) => deleteRecord(id)))
+      toast.success(`已删除 ${ids.length} 条记录`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '批量删除失败')
+    }
+  }
+
   const handleUpdateGiftRecordColumns = async (
     columns: GiftRecordColumnKey[]
   ) => {
@@ -157,6 +166,15 @@ export function EventDetailPage({
     }
   }
 
+  const handleDeleteAttachments = async (ids: string[]) => {
+    try {
+      await Promise.all(ids.map((id) => deleteAttachment(id)))
+      toast.success(`已删除 ${ids.length} 个文件`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : '批量删除失败')
+    }
+  }
+
   if (authLoading || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -200,6 +218,7 @@ export function EventDetailPage({
           onAddRecord={handleAddRecord}
           onUpdateRecord={handleUpdateRecord}
           onDeleteRecord={handleDeleteRecord}
+          onDeleteRecords={handleDeleteRecords}
           onUpdateGiftRecordColumns={handleUpdateGiftRecordColumns}
           onImportRecords={(currentEventId, file) => runImport(file)}
           onConfirmImportDuplicates={() => {
@@ -214,6 +233,7 @@ export function EventDetailPage({
           onUploadAttachments={handleUploadAttachments}
           onUpdateAttachment={handleUpdateAttachment}
           onDeleteAttachment={handleDeleteAttachment}
+          onDeleteAttachments={handleDeleteAttachments}
         />
       </main>
     </div>
