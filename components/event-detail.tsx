@@ -44,6 +44,7 @@ import { RecordFormDialog } from './record-form-dialog'
 import { EventLedgerWorkspace } from './event-ledger-workspace'
 import { EventFormDialog } from './event-form-dialog'
 import { exportToExcel, exportToPDF } from '@/lib/export'
+import { getEventDetailSections } from '@/lib/event-detail-sections.js'
 import {
   PAGE_SIZE_OPTIONS,
   getPaginationState,
@@ -204,10 +205,13 @@ export function EventDetail({
       ids.filter((id) => attachments.some((attachment) => attachment.id === id))
     )
   }, [attachments])
-  const showStatistics = section === 'overview'
-  const showNotes = section === 'overview' || section === 'notes'
-  const showRecords = section === 'overview' || section === 'records'
-  const showSectionLinks = section === 'overview'
+  const {
+    showWorkspace,
+    showStatistics,
+    showNotes,
+    showRecords,
+    showSectionLinks,
+  } = getEventDetailSections(section)
 
   const handleAttachmentPageSelection = (checked: boolean) => {
     setSelectedAttachmentIds((ids) => {
@@ -272,14 +276,49 @@ export function EventDetail({
         </Button>
       </div>
 
-      {showStatistics && (
+      {showWorkspace && (
         <>
+          <input
+            ref={excelInputRef}
+            type="file"
+            accept=".xlsx,.xls"
+            className="hidden"
+            onChange={handleExcelChange}
+          />
           <EventLedgerWorkspace
             event={event}
             records={records}
             maskAmounts={maskAmounts}
             onAddRecord={onAddRecord}
+            onEditRecord={handleEditRecord}
+            onManageRecordsHref={`/events/${event.id}/records`}
+            onImportExcel={() => excelInputRef.current?.click()}
+            onExportExcel={() => exportToExcel(records, event)}
+            onExportPDF={() =>
+              exportToPDF(records, event, {
+                coverImageDataUrl: pdfCoverImageDataUrl,
+                interfaceStyle,
+              })
+            }
+            visibleColumns={giftRecordColumns}
+            onVisibleColumnsChange={onUpdateGiftRecordColumns}
+            onDeleteRecord={onDeleteRecord}
+            onDeleteRecords={onDeleteRecords}
+            onExportSelectedExcel={(selectedRecords) =>
+              exportToExcel(selectedRecords, event)
+            }
+            onExportSelectedPDF={(selectedRecords) =>
+              exportToPDF(selectedRecords, event, {
+                coverImageDataUrl: pdfCoverImageDataUrl,
+                interfaceStyle,
+              })
+            }
           />
+        </>
+      )}
+
+      {showStatistics && (
+        <>
           <StatisticsCards statistics={statistics} maskAmounts={maskAmounts} />
         </>
       )}

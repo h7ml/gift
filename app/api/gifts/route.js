@@ -50,11 +50,22 @@ export async function POST(request) {
 
     if (body.kind === 'record') {
       const amount = Number(body.amount)
+      const returnGiftAmount =
+        body.returnGiftAmount === undefined || body.returnGiftAmount === null || body.returnGiftAmount === ''
+          ? undefined
+          : Number(body.returnGiftAmount)
       const eventId = requireString(body.eventId, '请选择活动')
       const guestName = requireString(body.guestName, '请输入送礼人姓名')
 
       if (!Number.isFinite(amount) || amount < 0) {
         return jsonError('请输入有效金额')
+      }
+
+      if (
+        returnGiftAmount !== undefined &&
+        (!Number.isFinite(returnGiftAmount) || returnGiftAmount < 0)
+      ) {
+        return jsonError('请输入有效还礼金额')
       }
 
       const existingRecord = await findGiftRecordByGuestName(
@@ -75,6 +86,9 @@ export async function POST(request) {
         relativeTitle: optionalString(body.relativeTitle),
         phoneNumber: optionalString(body.phoneNumber),
         homeAddress: optionalString(body.homeAddress),
+        returnGiftDone: body.returnGiftDone === true,
+        returnGiftAmount,
+        returnGiftNote: optionalString(body.returnGiftNote),
         date: requireString(body.date, '请选择日期'),
         note: optionalString(body.note),
       })

@@ -57,6 +57,9 @@ create table if not exists gift_records (
   relative_title text,
   phone_number text,
   home_address text,
+  return_gift_done boolean not null default false,
+  return_gift_amount numeric(12, 2) check (return_gift_amount is null or return_gift_amount >= 0),
+  return_gift_note text,
   record_date date not null,
   note text,
   created_at timestamptz not null default now(),
@@ -68,6 +71,9 @@ alter table gift_records add column if not exists home_address text;
 
 alter table gift_records add column if not exists relative_title text;
 alter table gift_records add column if not exists updated_at timestamptz not null default now();
+alter table gift_records add column if not exists return_gift_done boolean not null default false;
+alter table gift_records add column if not exists return_gift_amount numeric(12, 2);
+alter table gift_records add column if not exists return_gift_note text;
 
 create table if not exists event_attachments (
   id uuid primary key default gen_random_uuid(),

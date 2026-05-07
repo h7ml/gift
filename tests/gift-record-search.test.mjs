@@ -17,6 +17,14 @@ const records = [
     homeAddress: '北京市朝阳区',
   }),
   buildRecord({ id: '3', guestName: '王五', amount: 800, note: '红包' }),
+  buildRecord({
+    id: '4',
+    guestName: '赵六',
+    amount: 1000,
+    returnGiftDone: true,
+    returnGiftAmount: 300,
+    returnGiftNote: '微信还礼',
+  }),
 ]
 
 test('parseGiftRecordSearchQuery parses exact amount query', () => {
@@ -71,7 +79,18 @@ test('filterGiftRecordsBySearchQuery matches exact amount', () => {
 test('filterGiftRecordsBySearchQuery matches amount range inclusively', () => {
   assert.deepEqual(
     filterGiftRecordsBySearchQuery(records, '200~500').map((record) => record.id),
-    ['1', '2']
+    ['1', '2', '4']
+  )
+})
+
+test('filterGiftRecordsBySearchQuery matches return gift note and amount', () => {
+  assert.deepEqual(
+    filterGiftRecordsBySearchQuery(records, '微信还礼').map((record) => record.id),
+    ['4']
+  )
+  assert.deepEqual(
+    filterGiftRecordsBySearchQuery(records, '300').map((record) => record.id),
+    ['4']
   )
 })
 
@@ -84,6 +103,9 @@ function buildRecord(overrides) {
     relativeTitle: overrides.relativeTitle,
     phoneNumber: overrides.phoneNumber,
     homeAddress: overrides.homeAddress,
+    returnGiftDone: overrides.returnGiftDone ?? false,
+    returnGiftAmount: overrides.returnGiftAmount,
+    returnGiftNote: overrides.returnGiftNote,
     date: '2026-05-07',
     eventId: 'event-1',
     note: overrides.note,

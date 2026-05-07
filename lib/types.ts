@@ -16,6 +16,9 @@ export interface GiftRecord {
   relativeTitle?: string
   phoneNumber?: string
   homeAddress?: string
+  returnGiftDone: boolean
+  returnGiftAmount?: number
+  returnGiftNote?: string
   date: string
   eventId: string
   note?: string

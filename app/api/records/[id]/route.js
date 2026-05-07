@@ -18,10 +18,21 @@ export async function PUT(request, { params }) {
     const { id } = await params
     const body = await readJson(request)
     const amount = Number(body.amount)
+    const returnGiftAmount =
+      body.returnGiftAmount === undefined || body.returnGiftAmount === null || body.returnGiftAmount === ''
+        ? undefined
+        : Number(body.returnGiftAmount)
     const guestName = requireString(body.guestName, '请输入送礼人姓名')
 
     if (!Number.isFinite(amount) || amount < 0) {
       return jsonError('请输入有效金额')
+    }
+
+    if (
+      returnGiftAmount !== undefined &&
+      (!Number.isFinite(returnGiftAmount) || returnGiftAmount < 0)
+    ) {
+      return jsonError('请输入有效还礼金额')
     }
 
     const currentRecord = await getGiftRecordById(user.id, id)
@@ -48,6 +59,9 @@ export async function PUT(request, { params }) {
       relativeTitle: optionalString(body.relativeTitle),
       phoneNumber: optionalString(body.phoneNumber),
       homeAddress: optionalString(body.homeAddress),
+      returnGiftDone: body.returnGiftDone === true,
+      returnGiftAmount,
+      returnGiftNote: optionalString(body.returnGiftNote),
       date: requireString(body.date, '请选择日期'),
       note: optionalString(body.note),
     })

@@ -1,18 +1,40 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Maximize2, Search } from 'lucide-react'
+import Link from 'next/link'
+import {
+  ChevronLeft,
+  ChevronRight,
+  FileSpreadsheet,
+  FileText,
+  Maximize2,
+  Search,
+  Upload,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import type { GiftRecordColumnKey } from '@/lib/gift-record-columns.js'
 import { formatDisplayMoney } from '@/lib/money-display'
 import type { Event, GiftRecord } from '@/lib/types'
+import { RecordsTable } from './records-table'
 
 interface EventLedgerWorkspaceProps {
   event: Event
   records: GiftRecord[]
   maskAmounts: boolean
   onAddRecord: (data: Omit<GiftRecord, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
+  onEditRecord: (record: GiftRecord) => void
+  onManageRecordsHref: string
+  onImportExcel: () => void
+  onExportExcel: () => void
+  onExportPDF: () => void
+  visibleColumns: GiftRecordColumnKey[]
+  onVisibleColumnsChange: (columns: GiftRecordColumnKey[]) => Promise<GiftRecordColumnKey[]>
+  onDeleteRecord: (id: string) => Promise<void>
+  onDeleteRecords: (ids: string[]) => Promise<void>
+  onExportSelectedExcel: (records: GiftRecord[]) => void
+  onExportSelectedPDF: (records: GiftRecord[]) => void
 }
 
 const PAGE_SIZE = 36
@@ -23,6 +45,17 @@ export function EventLedgerWorkspace({
   records,
   maskAmounts,
   onAddRecord,
+  onEditRecord,
+  onManageRecordsHref,
+  onImportExcel,
+  onExportExcel,
+  onExportPDF,
+  visibleColumns,
+  onVisibleColumnsChange,
+  onDeleteRecord,
+  onDeleteRecords,
+  onExportSelectedExcel,
+  onExportSelectedPDF,
 }: EventLedgerWorkspaceProps) {
   const [guestName, setGuestName] = useState('')
   const [amount, setAmount] = useState('')
@@ -30,6 +63,7 @@ export function EventLedgerWorkspace({
   const [note, setNote] = useState('')
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(1)
+  const [viewMode, setViewMode] = useState<'ledger' | 'table'>('ledger')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const ledgerRef = useRef<HTMLDivElement>(null)
@@ -85,6 +119,7 @@ export function EventLedgerWorkspace({
         guestName: guestName.trim(),
         amount: Number(amount),
         giftItem,
+        returnGiftDone: false,
         date: new Date().toISOString().slice(0, 10),
         eventId: event.id,
         note: note.trim() || undefined,
@@ -118,8 +153,11 @@ export function EventLedgerWorkspace({
         onSubmit={handleSubmit}
         className="flex flex-col gap-5 border-r border-border/70 bg-card p-6 shadow-sm xl:min-h-[760px]"
       >
-        <div className="border-b pb-5 text-center">
-          <h2 className="text-3xl font-bold tracking-normal text-foreground">礼金录入</h2>
+        <div className="border-b pb-5">
+          <p className="text-sm font-medium text-muted-foreground">礼金录入与记录</p>
+          <h2 className="mt-1 text-3xl font-bold tracking-normal text-foreground">
+            礼金管理
+          </h2>
         </div>
 
         <div className="space-y-4">
@@ -178,7 +216,7 @@ export function EventLedgerWorkspace({
 
         <div className="mt-4 border-t pt-5">
           <h3 className="mb-4 text-2xl font-bold">功能区</h3>
-          <div className="relative">
+          <div className="relative mb-3">
             <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={query}
@@ -190,6 +228,56 @@ export function EventLedgerWorkspace({
               className="h-12 pl-10 text-base"
             />
           </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              variant={viewMode === 'ledger' ? 'default' : 'outline'}
+              className="justify-start"
+              onClick={() => setViewMode('ledger')}
+            >
+              礼薄模式
+            </Button>
+            <Button
+              type="button"
+              variant={viewMode === 'table' ? 'default' : 'outline'}
+              className="justify-start"
+              onClick={() => setViewMode('table')}
+            >
+              明细模式
+            </Button>
+            <Button asChild variant="outline" className="justify-start">
+              <Link href={onManageRecordsHref}>明细管理</Link>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="justify-start"
+              onClick={onImportExcel}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              导入
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="justify-start"
+              disabled={records.length === 0}
+              onClick={onExportExcel}
+            >
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              Excel
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="justify-start"
+              disabled={records.length === 0}
+              onClick={onExportPDF}
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              PDF
+            </Button>
+          </div>
         </div>
       </form>
 
@@ -200,9 +288,12 @@ export function EventLedgerWorkspace({
         <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap items-center gap-x-8 gap-y-2 text-2xl font-bold">
             <span>
-              本页小计:{' '}
+              {viewMode === 'ledger' ? '本页小计' : '筛选小计'}:{' '}
               <strong className="text-primary">
-                {formatDisplayMoney(currentPageAmount, maskAmounts)}
+                {formatDisplayMoney(
+                  viewMode === 'ledger' ? currentPageAmount : totalAmount,
+                  maskAmounts
+                )}
               </strong>
             </span>
             <span>
@@ -216,73 +307,98 @@ export function EventLedgerWorkspace({
             </span>
           </div>
 
-          <div className="flex items-center justify-end gap-3">
-            <Button
-              variant="secondary"
-              size="icon"
-              className="h-12 w-12 rounded-full"
-              disabled={safePage <= 1}
-              onClick={() => setPage((value) => Math.max(1, value - 1))}
-              aria-label="上一页"
-            >
-              <ChevronLeft className="h-6 w-6" />
-            </Button>
-            <div className="flex items-center gap-2 text-2xl font-bold">
-              第
-              <span className="rounded-md border bg-background px-3 py-1">
-                {safePage}
-              </span>
-              / {pageCount} 页
-            </div>
-            <Button
-              variant="secondary"
-              size="icon"
-              className="h-12 w-12 rounded-full"
-              disabled={safePage >= pageCount}
-              onClick={() => setPage((value) => Math.min(pageCount, value + 1))}
-              aria-label="下一页"
-            >
-              <ChevronRight className="h-6 w-6" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-12 w-12"
-              aria-label={isFullscreen ? '退出全屏' : '全屏查看'}
-              onClick={handleFullscreenToggle}
-            >
-              <Maximize2 className="h-6 w-6 text-primary" />
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid min-h-[680px] grid-cols-6 border-l border-t border-primary/30 bg-background md:grid-cols-9 xl:grid-cols-12">
-          {cells.map((record, index) => {
-            const isTitleRow = index >= 12 && index < 24
-
-            return (
-              <div
-                key={record?.id ?? `empty-${index}`}
-                className="relative flex min-h-40 flex-col items-center justify-center gap-2 border-b border-r border-primary/30 px-2 py-4 text-center"
+          {viewMode === 'ledger' && (
+            <div className="flex items-center justify-end gap-3">
+              <Button
+                variant="secondary"
+                size="icon"
+                className="h-12 w-12 rounded-full"
+                disabled={safePage <= 1}
+                onClick={() => setPage((value) => Math.max(1, value - 1))}
+                aria-label="上一页"
               >
-                {isTitleRow && !record ? (
-                  <VerticalText className="text-2xl font-bold text-primary">
-                    {ritualText}
-                  </VerticalText>
-                ) : record ? (
-                  <>
-                    <VerticalText className="text-lg font-bold text-foreground">
-                      {record.guestName}
-                    </VerticalText>
-                    <span className="text-sm font-semibold text-primary">
-                      {formatDisplayMoney(record.amount, maskAmounts)}
-                    </span>
-                  </>
-                ) : null}
+                <ChevronLeft className="h-6 w-6" />
+              </Button>
+              <div className="flex items-center gap-2 text-2xl font-bold">
+                第
+                <span className="rounded-md border bg-background px-3 py-1">
+                  {safePage}
+                </span>
+                / {pageCount} 页
               </div>
-            )
-          })}
+              <Button
+                variant="secondary"
+                size="icon"
+                className="h-12 w-12 rounded-full"
+                disabled={safePage >= pageCount}
+                onClick={() => setPage((value) => Math.min(pageCount, value + 1))}
+                aria-label="下一页"
+              >
+                <ChevronRight className="h-6 w-6" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-12 w-12"
+                aria-label={isFullscreen ? '退出全屏' : '全屏查看'}
+                onClick={handleFullscreenToggle}
+              >
+                <Maximize2 className="h-6 w-6 text-primary" />
+              </Button>
+            </div>
+          )}
         </div>
+
+        {viewMode === 'ledger' ? (
+          <div className="grid min-h-[680px] grid-cols-6 border-l border-t border-primary/30 bg-background md:grid-cols-9 xl:grid-cols-12">
+            {cells.map((record, index) => {
+              const isTitleRow = index >= 12 && index < 24
+
+              return (
+                <div
+                  key={record?.id ?? `empty-${index}`}
+                  className="relative min-h-40 border-b border-r border-primary/30 text-center"
+                >
+                  {record ? (
+                    <button
+                      type="button"
+                      className="flex h-full min-h-40 w-full flex-col items-center justify-center gap-2 px-2 py-4 transition-colors hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                      aria-label={`编辑${record.guestName}的礼金记录`}
+                      onClick={() => onEditRecord(record)}
+                    >
+                      <VerticalText className="text-lg font-bold text-foreground">
+                        {record.guestName}
+                      </VerticalText>
+                      <span className="text-sm font-semibold text-primary">
+                        {formatDisplayMoney(record.amount, maskAmounts)}
+                      </span>
+                    </button>
+                  ) : isTitleRow ? (
+                    <div className="flex h-full min-h-40 flex-col items-center justify-center gap-2 px-2 py-4">
+                      <VerticalText className="text-2xl font-bold text-primary">
+                        {ritualText}
+                      </VerticalText>
+                    </div>
+                  ) : null}
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="rounded-lg border bg-card p-3">
+            <RecordsTable
+              records={records}
+              visibleColumns={visibleColumns}
+              onVisibleColumnsChange={onVisibleColumnsChange}
+              maskAmounts={maskAmounts}
+              onEdit={onEditRecord}
+              onDelete={onDeleteRecord}
+              onDeleteMany={onDeleteRecords}
+              onExportSelectedExcel={onExportSelectedExcel}
+              onExportSelectedPDF={onExportSelectedPDF}
+            />
+          </div>
+        )}
       </div>
     </section>
   )

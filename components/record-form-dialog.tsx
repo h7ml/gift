@@ -32,6 +32,9 @@ export function RecordFormDialog({ open, onOpenChange, eventId, record, onSubmit
   const [phoneNumber, setPhoneNumber] = useState('')
   const [homeAddress, setHomeAddress] = useState('')
   const [amount, setAmount] = useState('')
+  const [returnGiftDone, setReturnGiftDone] = useState(false)
+  const [returnGiftAmount, setReturnGiftAmount] = useState('')
+  const [returnGiftNote, setReturnGiftNote] = useState('')
   const [giftItem, setGiftItem] = useState('')
   const [date, setDate] = useState('')
   const [note, setNote] = useState('')
@@ -43,6 +46,9 @@ export function RecordFormDialog({ open, onOpenChange, eventId, record, onSubmit
       setPhoneNumber(record.phoneNumber || '')
       setHomeAddress(record.homeAddress || '')
       setAmount(record.amount.toString())
+      setReturnGiftDone(record.returnGiftDone)
+      setReturnGiftAmount(record.returnGiftAmount?.toString() || '')
+      setReturnGiftNote(record.returnGiftNote || '')
       setGiftItem(record.giftItem)
       setDate(record.date)
       setNote(record.note || '')
@@ -52,6 +58,9 @@ export function RecordFormDialog({ open, onOpenChange, eventId, record, onSubmit
       setPhoneNumber('')
       setHomeAddress('')
       setAmount('')
+      setReturnGiftDone(false)
+      setReturnGiftAmount('')
+      setReturnGiftNote('')
       setGiftItem('')
       setDate(new Date().toISOString().split('T')[0])
       setNote('')
@@ -66,6 +75,9 @@ export function RecordFormDialog({ open, onOpenChange, eventId, record, onSubmit
       phoneNumber: phoneNumber || undefined,
       homeAddress: homeAddress || undefined,
       amount: parseFloat(amount),
+      returnGiftDone,
+      returnGiftAmount: returnGiftAmount ? parseFloat(returnGiftAmount) : undefined,
+      returnGiftNote: returnGiftNote || undefined,
       giftItem,
       date,
       eventId,
@@ -163,6 +175,39 @@ export function RecordFormDialog({ open, onOpenChange, eventId, record, onSubmit
                     ¥{value}
                   </Button>
                 ))}
+              </div>
+            </div>
+
+            <div className="space-y-3 rounded-lg border bg-secondary/20 p-3">
+              <label className="flex items-center gap-2 text-sm font-medium">
+                <input
+                  type="checkbox"
+                  checked={returnGiftDone}
+                  onChange={(event) => setReturnGiftDone(event.target.checked)}
+                />
+                已还礼
+              </label>
+              <div className="space-y-2">
+                <Label htmlFor="returnGiftAmount">还礼金额</Label>
+                <Input
+                  id="returnGiftAmount"
+                  type="number"
+                  value={returnGiftAmount}
+                  onChange={(e) => setReturnGiftAmount(e.target.value)}
+                  placeholder="请输入还礼金额"
+                  min="0"
+                  step="1"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="returnGiftNote">还礼备注</Label>
+                <Textarea
+                  id="returnGiftNote"
+                  value={returnGiftNote}
+                  onChange={(e) => setReturnGiftNote(e.target.value)}
+                  placeholder="例如：微信转账、礼品名称、还礼时间"
+                  rows={2}
+                />
               </div>
             </div>
 

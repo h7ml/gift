@@ -60,7 +60,13 @@ interface RecordsTableProps {
   maskAmounts?: boolean
 }
 
-type SortField = 'guestName' | 'amount' | 'date' | 'createdAt' | 'updatedAt'
+type SortField =
+  | 'guestName'
+  | 'amount'
+  | 'returnGiftAmount'
+  | 'date'
+  | 'createdAt'
+  | 'updatedAt'
 type SortOrder = 'asc' | 'desc'
 type ColumnKey = GiftRecordColumnKey
 
@@ -106,6 +112,33 @@ const RECORD_COLUMNS: Array<{
     label: '金额大写',
     render: (record, maskAmounts) =>
       formatDisplayChineseMoney(record.amount, maskAmounts),
+  },
+  {
+    key: 'returnGiftDone',
+    label: '还礼状态',
+    render: (record) => (
+      <Badge variant={record.returnGiftDone ? 'default' : 'secondary'}>
+        {record.returnGiftDone ? '已还礼' : '未还礼'}
+      </Badge>
+    ),
+  },
+  {
+    key: 'returnGiftAmount',
+    label: '还礼金额',
+    sortable: true,
+    render: (record, maskAmounts) =>
+      typeof record.returnGiftAmount === 'number' ? (
+        <span className="text-primary font-semibold">
+          {formatDisplayMoney(record.returnGiftAmount, maskAmounts)}
+        </span>
+      ) : (
+        '-'
+      ),
+  },
+  {
+    key: 'returnGiftNote',
+    label: '还礼备注',
+    render: (record) => record.returnGiftNote || '-',
   },
   {
     key: 'giftItem',
@@ -179,6 +212,9 @@ export function RecordsTable({
           break
         case 'amount':
           comparison = a.amount - b.amount
+          break
+        case 'returnGiftAmount':
+          comparison = (a.returnGiftAmount ?? 0) - (b.returnGiftAmount ?? 0)
           break
         case 'date':
           comparison = new Date(a.date).getTime() - new Date(b.date).getTime()

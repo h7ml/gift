@@ -21,6 +21,9 @@ export function exportToExcel(records: GiftRecord[], event: Event) {
     '住宅地址': record.homeAddress || '-',
     '金额（元）': record.amount,
     '金额大写': formatChineseMoney(record.amount),
+    '已还礼': record.returnGiftDone ? '是' : '否',
+    '还礼金额': record.returnGiftAmount ?? '',
+    '还礼备注': record.returnGiftNote || '-',
     '礼品': record.giftItem || '-',
     '日期': format(new Date(record.date), 'yyyy年MM月dd日', { locale: zhCN }),
     '备注': record.note || '-',
@@ -39,6 +42,9 @@ export function exportToExcel(records: GiftRecord[], event: Event) {
     '住宅地址': '-',
     '金额（元）': totalAmount,
     '金额大写': formatChineseMoney(totalAmount),
+    '已还礼': '-',
+    '还礼金额': records.reduce((sum, r) => sum + (r.returnGiftAmount ?? 0), 0),
+    '还礼备注': '-',
     '礼品': '-',
     '日期': '-',
     '备注': `共 ${records.length} 人`,
@@ -59,6 +65,9 @@ export function exportToExcel(records: GiftRecord[], event: Event) {
     { wch: 24 }, // 住宅地址
     { wch: 12 }, // 金额
     { wch: 28 }, // 金额大写
+    { wch: 10 }, // 已还礼
+    { wch: 12 }, // 还礼金额
+    { wch: 20 }, // 还礼备注
     { wch: 15 }, // 礼品
     { wch: 15 }, // 日期
     { wch: 20 }, // 备注
@@ -128,6 +137,11 @@ export function exportToPDF(
     record.homeAddress || '-',
     `¥${record.amount.toLocaleString()}`,
     formatChineseMoney(record.amount),
+    record.returnGiftDone ? 'Yes' : 'No',
+    typeof record.returnGiftAmount === 'number'
+      ? `¥${record.returnGiftAmount.toLocaleString()}`
+      : '-',
+    record.returnGiftNote || '-',
     record.giftItem || '-',
     format(new Date(record.date), 'MM/dd'),
     record.note || '-'
@@ -143,12 +157,15 @@ export function exportToPDF(
     `¥${totalAmount.toLocaleString()}`,
     formatChineseMoney(totalAmount),
     '-',
+    `¥${records.reduce((sum, r) => sum + (r.returnGiftAmount ?? 0), 0).toLocaleString()}`,
+    '-',
+    '-',
     '-',
     `${records.length} guests`
   ])
 
   autoTable(doc, {
-    head: [['#', 'Name', 'Phone', 'Address', 'Amount', 'Uppercase', 'Gift', 'Date', 'Note']],
+    head: [['#', 'Name', 'Phone', 'Address', 'Amount', 'Uppercase', 'Returned', 'Return Amount', 'Return Note', 'Gift', 'Date', 'Note']],
     body: tableData,
     startY,
     styles: {
@@ -203,6 +220,9 @@ export function exportAllToExcel(events: Event[], records: GiftRecord[]) {
       '住宅地址': record.homeAddress || '-',
       '金额（元）': record.amount,
       '金额大写': formatChineseMoney(record.amount),
+      '已还礼': record.returnGiftDone ? '是' : '否',
+      '还礼金额': record.returnGiftAmount ?? '',
+      '还礼备注': record.returnGiftNote || '-',
       '礼品': record.giftItem || '-',
       '日期': format(new Date(record.date), 'yyyy年MM月dd日', { locale: zhCN }),
       '备注': record.note || '-',
@@ -220,6 +240,9 @@ export function exportAllToExcel(events: Event[], records: GiftRecord[]) {
       '住宅地址': '-',
       '金额（元）': totalAmount,
       '金额大写': formatChineseMoney(totalAmount),
+      '已还礼': '-',
+      '还礼金额': eventRecords.reduce((sum, r) => sum + (r.returnGiftAmount ?? 0), 0),
+      '还礼备注': '-',
       '礼品': '-',
       '日期': '-',
       '备注': `共 ${eventRecords.length} 人`,
@@ -237,6 +260,9 @@ export function exportAllToExcel(events: Event[], records: GiftRecord[]) {
       { wch: 24 },
       { wch: 12 },
       { wch: 28 },
+      { wch: 10 },
+      { wch: 12 },
+      { wch: 20 },
       { wch: 15 },
       { wch: 15 },
       { wch: 20 },
