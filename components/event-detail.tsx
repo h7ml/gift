@@ -26,6 +26,7 @@ import {
   Download,
   Trash2,
   Edit,
+  Settings,
   ChevronDown,
   ChevronRight,
   UserRound
@@ -33,12 +34,15 @@ import {
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import type { Event, EventAttachment, GiftRecord, Statistics } from '@/lib/types'
+import type { InterfaceStyle } from '@/lib/types'
 import { EVENT_TYPE_ICONS } from '@/lib/types'
 import type { GiftRecordColumnKey } from '@/lib/gift-record-columns.js'
 import { AmountVisibilityToggle } from './amount-visibility-toggle'
 import { StatisticsCards } from './statistics-cards'
 import { RecordsTable } from './records-table'
 import { RecordFormDialog } from './record-form-dialog'
+import { EventLedgerWorkspace } from './event-ledger-workspace'
+import { EventFormDialog } from './event-form-dialog'
 import { exportToExcel, exportToPDF } from '@/lib/export'
 import {
   PAGE_SIZE_OPTIONS,
@@ -54,8 +58,11 @@ interface EventDetailProps {
   duplicateImport?: { duplicateCount: number; totalCount: number } | null
   giftRecordColumns: GiftRecordColumnKey[]
   maskAmounts: boolean
+  interfaceStyle: InterfaceStyle
+  pdfCoverImageDataUrl: string | null
   section?: 'overview' | 'notes' | 'records'
   onBack: () => void
+  onUpdateEvent: (data: Omit<Event, 'id' | 'createdAt'>) => Promise<void>
   onAddRecord: (data: Omit<GiftRecord, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
   onUpdateRecord: (id: string, data: Partial<GiftRecord>) => Promise<void>
   onDeleteRecord: (id: string) => Promise<void>
@@ -82,8 +89,11 @@ export function EventDetail({
   duplicateImport,
   giftRecordColumns,
   maskAmounts,
+  interfaceStyle,
+  pdfCoverImageDataUrl,
   section = 'overview',
   onBack,
+  onUpdateEvent,
   onAddRecord,
   onUpdateRecord,
   onDeleteRecord,
@@ -99,6 +109,7 @@ export function EventDetail({
   onDeleteAttachments
 }: EventDetailProps) {
   const [recordDialogOpen, setRecordDialogOpen] = useState(false)
+  const [eventSettingsOpen, setEventSettingsOpen] = useState(false)
   const [editingRecord, setEditingRecord] = useState<GiftRecord | null>(null)
   const [editingAttachment, setEditingAttachment] = useState<EventAttachment | null>(null)
   const [attachmentDisplayName, setAttachmentDisplayName] = useState('')
@@ -255,10 +266,22 @@ export function EventDetail({
           maskAmounts={maskAmounts}
           onMaskAmountsChange={onMaskAmountsChange}
         />
+        <Button variant="outline" onClick={() => setEventSettingsOpen(true)}>
+          <Settings className="h-4 w-4 mr-2" />
+          更多设置
+        </Button>
       </div>
 
       {showStatistics && (
-        <StatisticsCards statistics={statistics} maskAmounts={maskAmounts} />
+        <>
+          <EventLedgerWorkspace
+            event={event}
+            records={records}
+            maskAmounts={maskAmounts}
+            onAddRecord={onAddRecord}
+          />
+          <StatisticsCards statistics={statistics} maskAmounts={maskAmounts} />
+        </>
       )}
 
       {showNotes && (
@@ -544,7 +567,12 @@ export function EventDetail({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => exportToPDF(records, event)}
+                onClick={() =>
+                  exportToPDF(records, event, {
+                    coverImageDataUrl: pdfCoverImageDataUrl,
+                    interfaceStyle,
+                  })
+                }
                 disabled={records.length === 0}
               >
                 <FileText className="h-4 w-4 mr-2" />
@@ -575,7 +603,10 @@ export function EventDetail({
                 exportToExcel(selectedRecords, event)
               }
               onExportSelectedPDF={(selectedRecords) =>
-                exportToPDF(selectedRecords, event)
+                exportToPDF(selectedRecords, event, {
+                  coverImageDataUrl: pdfCoverImageDataUrl,
+                  interfaceStyle,
+                })
               }
             />
           </CardContent>
@@ -589,6 +620,13 @@ export function EventDetail({
         eventId={event.id}
         record={editingRecord}
         onSubmit={handleRecordSubmit}
+      />
+
+      <EventFormDialog
+        open={eventSettingsOpen}
+        onOpenChange={setEventSettingsOpen}
+        event={event}
+        onSubmit={onUpdateEvent}
       />
 
       <Dialog

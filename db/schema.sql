@@ -25,10 +25,28 @@ create table if not exists events (
   bookkeeper_name text not null default '',
   location text,
   description text,
+  interface_style text not null default 'red' check (interface_style in ('red', 'gray')),
+  pdf_cover_image_data_url text,
   created_at timestamptz not null default now()
 );
 
 alter table events add column if not exists bookkeeper_name text not null default '';
+alter table events add column if not exists interface_style text not null default 'red';
+alter table events add column if not exists pdf_cover_image_data_url text;
+
+create table if not exists event_members (
+  event_id uuid not null references events(id) on delete cascade,
+  user_id uuid not null references users(id) on delete cascade,
+  role text not null check (role in ('owner', 'admin', 'editor', 'viewer')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (event_id, user_id)
+);
+
+insert into event_members (event_id, user_id, role)
+select id, user_id, 'owner'
+from events
+on conflict (event_id, user_id) do nothing;
 
 create table if not exists gift_records (
   id uuid primary key default gen_random_uuid(),
@@ -75,5 +93,7 @@ create table if not exists user_preferences (
 create index if not exists sessions_token_idx on sessions(token);
 create index if not exists sessions_expires_at_idx on sessions(expires_at);
 create index if not exists events_user_id_created_at_idx on events(user_id, created_at desc);
+create index if not exists event_members_user_id_idx on event_members(user_id);
+create index if not exists event_members_event_id_role_idx on event_members(event_id, role);
 create index if not exists gift_records_event_id_created_at_idx on gift_records(event_id, created_at desc);
 create index if not exists event_attachments_event_id_created_at_idx on event_attachments(event_id, created_at desc);

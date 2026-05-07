@@ -2,7 +2,10 @@ import { jsonError, readJson } from '@/lib/api.js'
 import {
   listUserPreferences,
   updateGiftRecordColumnsPreference,
+  updateInterfaceStylePreference,
   updateMaskAmountsPreference,
+  updatePdfCoverImageDataUrlPreference,
+  updateSuccessVoiceURIPreference,
 } from '@/lib/db/preferences.js'
 import { requireCurrentUser } from '@/lib/server-auth.js'
 
@@ -41,6 +44,28 @@ export async function PUT(request) {
         user.id,
         body.maskAmounts
       )
+    }
+
+    if (Object.hasOwn(body, 'interfaceStyle')) {
+      preferences.interfaceStyle = await updateInterfaceStylePreference(
+        user.id,
+        body.interfaceStyle
+      )
+    }
+
+    if (Object.hasOwn(body, 'successVoiceURI')) {
+      preferences.successVoiceURI = await updateSuccessVoiceURIPreference(
+        user.id,
+        body.successVoiceURI
+      )
+    }
+
+    if (Object.hasOwn(body, 'pdfCoverImageDataUrl')) {
+      preferences.pdfCoverImageDataUrl =
+        await updatePdfCoverImageDataUrlPreference(
+          user.id,
+          body.pdfCoverImageDataUrl
+        )
     }
 
     return Response.json({ preferences })

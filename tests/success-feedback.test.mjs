@@ -33,3 +33,35 @@ test('speakSuccessMessage speaks the success message when supported', () => {
   assert.equal(spoken[1].lang, 'zh-CN')
   assert.equal(spoken[1].rate, 1)
 })
+
+test('speakSuccessMessage applies selected voice when available', () => {
+  const selectedVoice = {
+    voiceURI: 'voice-1',
+    lang: 'zh-TW',
+  }
+  const spoken = []
+  const speech = {
+    cancel() {
+      spoken.push('cancel')
+    },
+    speak(utterance) {
+      spoken.push(utterance)
+    },
+    getVoices() {
+      return [selectedVoice]
+    },
+  }
+  const win = {
+    speechSynthesis: speech,
+    SpeechSynthesisUtterance: class {
+      constructor(text) {
+        this.text = text
+      }
+    },
+  }
+
+  speakSuccessMessage('保存成功', win, 'voice-1')
+
+  assert.equal(spoken[1].voice, selectedVoice)
+  assert.equal(spoken[1].lang, 'zh-TW')
+})

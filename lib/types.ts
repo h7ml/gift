@@ -35,6 +35,26 @@ export interface EventAttachment {
   createdAt: string
 }
 
+export type EventMemberRole = 'owner' | 'admin' | 'editor' | 'viewer'
+export type InterfaceStyle = 'red' | 'gray'
+
+export interface EventMember {
+  eventId: string
+  userId: string
+  role: EventMemberRole
+  email: string
+  name: string
+  createdAt: string
+}
+
+export interface UserPreferences {
+  giftRecordColumns: string[]
+  maskAmounts: boolean
+  interfaceStyle: InterfaceStyle
+  successVoiceURI: string | null
+  pdfCoverImageDataUrl: string | null
+}
+
 export interface Event {
   id: string
   name: string
@@ -43,6 +63,8 @@ export interface Event {
   bookkeeperName: string
   location?: string
   description?: string
+  interfaceStyle: InterfaceStyle
+  pdfCoverImageDataUrl?: string
   createdAt: string
 }
 

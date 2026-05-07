@@ -12,7 +12,7 @@ import {
 import { MoreVertical, Calendar, MapPin, Trash2, Edit, FileSpreadsheet, FileText, UserRound } from 'lucide-react'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
-import type { Event, GiftRecord } from '@/lib/types'
+import type { Event, GiftRecord, InterfaceStyle } from '@/lib/types'
 import { EVENT_TYPE_ICONS } from '@/lib/types'
 import { exportToExcel, exportToPDF } from '@/lib/export'
 import { formatDisplayMoney } from '@/lib/money-display'
@@ -22,6 +22,8 @@ interface EventCardProps {
   records: GiftRecord[]
   selected: boolean
   maskAmounts?: boolean
+  interfaceStyle?: InterfaceStyle
+  pdfCoverImageDataUrl?: string | null
   onSelectChange: (checked: boolean) => void
   onSelect: () => void
   onEdit: () => void
@@ -33,6 +35,8 @@ export function EventCard({
   records,
   selected,
   maskAmounts = false,
+  interfaceStyle = 'red',
+  pdfCoverImageDataUrl = null,
   onSelectChange,
   onSelect,
   onEdit,
@@ -48,7 +52,10 @@ export function EventCard({
 
   const handleExportPDF = (e: React.MouseEvent) => {
     e.stopPropagation()
-    exportToPDF(records, event)
+    exportToPDF(records, event, {
+      coverImageDataUrl: pdfCoverImageDataUrl,
+      interfaceStyle,
+    })
   }
 
   return (

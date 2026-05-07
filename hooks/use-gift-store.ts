@@ -6,7 +6,15 @@ import {
   normalizeGiftRecordColumns,
   type GiftRecordColumnKey,
 } from '@/lib/gift-record-columns.js'
-import type { Event, EventAttachment, GiftRecord, Statistics } from '@/lib/types'
+import type {
+  Event,
+  EventAttachment,
+  EventMember,
+  EventMemberRole,
+  GiftRecord,
+  InterfaceStyle,
+  Statistics,
+} from '@/lib/types'
 
 type EventInput = Omit<Event, 'id' | 'createdAt'>
 type RecordInput = Omit<GiftRecord, 'id' | 'createdAt' | 'updatedAt'>
@@ -18,6 +26,11 @@ export function useGiftStore() {
   const [giftRecordColumns, setGiftRecordColumnsState] =
     useState<GiftRecordColumnKey[]>(DEFAULT_GIFT_RECORD_COLUMNS)
   const [maskAmounts, setMaskAmountsState] = useState(false)
+  const [interfaceStyle, setInterfaceStyleState] =
+    useState<InterfaceStyle>('red')
+  const [successVoiceURI, setSuccessVoiceURIState] = useState<string | null>(null)
+  const [pdfCoverImageDataUrl, setPdfCoverImageDataUrlState] =
+    useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   const loadData = useCallback(async () => {
@@ -35,12 +48,15 @@ export function useGiftStore() {
         setAttachments([])
         setGiftRecordColumnsState(DEFAULT_GIFT_RECORD_COLUMNS)
         setMaskAmountsState(false)
+        setInterfaceStyleState('red')
+        setSuccessVoiceURIState(null)
+        setPdfCoverImageDataUrlState(null)
         return
       }
 
       const [giftData, preferencesData] = await Promise.all([
-        giftResponse.json(),
-        preferencesResponse.json(),
+        readResponseJson(giftResponse, '加载数据失败'),
+        readResponseJson(preferencesResponse, '加载配置失败'),
       ])
 
       if (!giftResponse.ok) {
@@ -58,6 +74,17 @@ export function useGiftStore() {
         normalizeGiftRecordColumns(preferencesData.preferences?.giftRecordColumns)
       )
       setMaskAmountsState(preferencesData.preferences?.maskAmounts === true)
+      setInterfaceStyleState(
+        normalizeInterfaceStyle(preferencesData.preferences?.interfaceStyle)
+      )
+      setSuccessVoiceURIState(
+        normalizeNullablePreference(preferencesData.preferences?.successVoiceURI)
+      )
+      setPdfCoverImageDataUrlState(
+        normalizeNullablePreference(
+          preferencesData.preferences?.pdfCoverImageDataUrl
+        )
+      )
     } catch (error) {
       console.error('加载数据失败:', error)
     } finally {
@@ -180,6 +207,78 @@ export function useGiftStore() {
     [loadData]
   )
 
+  const setInterfaceStyle = useCallback(
+    async (nextInterfaceStyle: InterfaceStyle) => {
+      const normalizedInterfaceStyle = normalizeInterfaceStyle(nextInterfaceStyle)
+      setInterfaceStyleState(normalizedInterfaceStyle)
+
+      try {
+        const data = await requestJson('/api/preferences', {
+          method: 'PUT',
+          body: { interfaceStyle: normalizedInterfaceStyle },
+        })
+        const savedInterfaceStyle = normalizeInterfaceStyle(
+          data.preferences?.interfaceStyle
+        )
+
+        setInterfaceStyleState(savedInterfaceStyle)
+        return savedInterfaceStyle
+      } catch (error) {
+        await loadData()
+        throw error
+      }
+    },
+    [loadData]
+  )
+
+  const setSuccessVoiceURI = useCallback(
+    async (nextVoiceURI: string | null) => {
+      const normalizedVoiceURI = normalizeNullablePreference(nextVoiceURI)
+      setSuccessVoiceURIState(normalizedVoiceURI)
+
+      try {
+        const data = await requestJson('/api/preferences', {
+          method: 'PUT',
+          body: { successVoiceURI: normalizedVoiceURI },
+        })
+        const savedVoiceURI = normalizeNullablePreference(
+          data.preferences?.successVoiceURI
+        )
+
+        setSuccessVoiceURIState(savedVoiceURI)
+        return savedVoiceURI
+      } catch (error) {
+        await loadData()
+        throw error
+      }
+    },
+    [loadData]
+  )
+
+  const setPdfCoverImageDataUrl = useCallback(
+    async (nextDataUrl: string | null) => {
+      const normalizedDataUrl = normalizeNullablePreference(nextDataUrl)
+      setPdfCoverImageDataUrlState(normalizedDataUrl)
+
+      try {
+        const data = await requestJson('/api/preferences', {
+          method: 'PUT',
+          body: { pdfCoverImageDataUrl: normalizedDataUrl },
+        })
+        const savedDataUrl = normalizeNullablePreference(
+          data.preferences?.pdfCoverImageDataUrl
+        )
+
+        setPdfCoverImageDataUrlState(savedDataUrl)
+        return savedDataUrl
+      } catch (error) {
+        await loadData()
+        throw error
+      }
+    },
+    [loadData]
+  )
+
   const importRecordsFromExcel = useCallback(async (
     eventId: string,
     file: File,
@@ -200,7 +299,7 @@ export function useGiftStore() {
       body: formData,
       }
     )
-    const data = await response.json()
+    const data = await readResponseJson(response, 'Excel 导入失败')
 
     if (!response.ok) {
       if (response.status === 409) {
@@ -236,7 +335,7 @@ export function useGiftStore() {
       method: 'POST',
       body: formData,
     })
-    const data = await response.json()
+    const data = await readResponseJson(response, '上传失败')
 
     if (!response.ok) {
       throw new Error(data.error || '上传失败')
@@ -265,6 +364,41 @@ export function useGiftStore() {
         )
       )
       return updatedAttachment
+    },
+    []
+  )
+
+  const listEventMembers = useCallback(async (eventId: string) => {
+    const response = await fetch(`/api/events/${eventId}/members`)
+    const data = await readResponseJson(response, '加载成员失败')
+
+    if (!response.ok) {
+      throw new Error(data.error || '加载成员失败')
+    }
+
+    return data.members as EventMember[]
+  }, [])
+
+  const saveEventMember = useCallback(
+    async (
+      eventId: string,
+      member: { email: string; role: Exclude<EventMemberRole, 'owner'> }
+    ) => {
+      const data = await requestJson(`/api/events/${eventId}/members`, {
+        method: 'POST',
+        body: member,
+      })
+
+      return data.member as EventMember
+    },
+    []
+  )
+
+  const removeEventMember = useCallback(
+    async (eventId: string, userId: string) => {
+      await requestJson(`/api/events/${eventId}/members/${userId}`, {
+        method: 'DELETE',
+      })
     },
     []
   )
@@ -305,6 +439,9 @@ export function useGiftStore() {
     attachments,
     giftRecordColumns,
     maskAmounts,
+    interfaceStyle,
+    successVoiceURI,
+    pdfCoverImageDataUrl,
     isLoading,
     addEvent,
     updateEvent,
@@ -314,15 +451,29 @@ export function useGiftStore() {
     deleteRecord,
     setGiftRecordColumns,
     setMaskAmounts,
+    setInterfaceStyle,
+    setSuccessVoiceURI,
+    setPdfCoverImageDataUrl,
     importRecordsFromExcel,
     getRecordsByEvent,
     getAttachmentsByEvent,
     uploadAttachments,
     updateAttachment,
     deleteAttachment,
+    listEventMembers,
+    saveEventMember,
+    removeEventMember,
     getStatistics,
     refresh: loadData,
   }
+}
+
+function normalizeInterfaceStyle(value: unknown): InterfaceStyle {
+  return value === 'gray' ? 'gray' : 'red'
+}
+
+function normalizeNullablePreference(value: unknown) {
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : null
 }
 
 export class DuplicateImportError extends Error {
@@ -346,11 +497,25 @@ async function requestJson(
     headers: options.body ? { 'Content-Type': 'application/json' } : undefined,
     body: options.body ? JSON.stringify(options.body) : undefined,
   })
-  const data = await response.json()
+  const data = await readResponseJson(response, '请求失败')
 
   if (!response.ok) {
     throw new Error(data.error || '请求失败')
   }
 
   return data
+}
+
+async function readResponseJson(response: Response, fallbackMessage: string) {
+  const text = await response.text()
+
+  if (!text) {
+    return {}
+  }
+
+  try {
+    return JSON.parse(text)
+  } catch {
+    throw new Error(fallbackMessage)
+  }
 }

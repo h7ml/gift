@@ -14,9 +14,13 @@ export async function GET() {
     return jsonError('请先登录', 401)
   }
 
-  const data = await listGiftBookData(user.id)
+  try {
+    const data = await listGiftBookData(user.id)
 
-  return Response.json(data)
+    return Response.json(data)
+  } catch (error) {
+    return jsonError(error.message || '加载数据失败', 500)
+  }
 }
 
 export async function POST(request) {
@@ -37,6 +41,8 @@ export async function POST(request) {
         bookkeeperName: requireString(body.bookkeeperName, '请输入记账人'),
         location: optionalString(body.location),
         description: optionalString(body.description),
+        interfaceStyle: body.interfaceStyle === 'gray' ? 'gray' : 'red',
+        pdfCoverImageDataUrl: optionalString(body.pdfCoverImageDataUrl),
       })
 
       return Response.json({ event }, { status: 201 })

@@ -1,5 +1,6 @@
 import { jsonError } from '@/lib/api.js'
 import { createGiftRecord, listGiftRecordsByEvent } from '@/lib/db/gifts.js'
+import { requireEventPermission } from '@/lib/db/event-members.js'
 import {
   findDuplicateGiftRecordNames,
   findDuplicateGiftRecords,
@@ -17,6 +18,12 @@ export async function POST(request, { params }) {
   }
 
   const { id } = await params
+  const access = await requireEventPermission(user.id, id, 'records:import')
+
+  if (!access) {
+    return jsonError('活动不存在', 404)
+  }
+
   const url = new URL(request.url)
   const confirmDuplicates = url.searchParams.get('confirmDuplicates') === 'true'
   const formData = await request.formData()

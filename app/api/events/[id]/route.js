@@ -19,6 +19,8 @@ export async function PUT(request, { params }) {
       bookkeeperName: requireString(body.bookkeeperName, '请输入记账人'),
       location: optionalString(body.location),
       description: optionalString(body.description),
+      interfaceStyle: body.interfaceStyle === 'gray' ? 'gray' : 'red',
+      pdfCoverImageDataUrl: optionalString(body.pdfCoverImageDataUrl),
     })
 
     if (!event) {

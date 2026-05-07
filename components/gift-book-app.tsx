@@ -31,13 +31,16 @@ import type { Event } from '@/lib/types'
 
 export function GiftBookApp() {
   const router = useRouter()
-  const { user, isLoading: authLoading, isAuthenticated } = useAuthStore()
+  const { isLoading: authLoading, isAuthenticated } = useAuthStore()
   
   const {
     events,
     records,
     isLoading,
     maskAmounts,
+    interfaceStyle,
+    successVoiceURI,
+    pdfCoverImageDataUrl,
     addEvent,
     updateEvent,
     deleteEvent,
@@ -64,7 +67,7 @@ export function GiftBookApp() {
   const handleCreateEvent = async (data: Omit<Event, 'id' | 'createdAt'>) => {
     try {
       await addEvent(data)
-      notifySuccess('活动创建成功')
+      notifySuccess('活动创建成功', { voiceURI: successVoiceURI })
     } catch (error) {
       toast.error(error instanceof Error ? error.message : '活动创建失败')
     }
@@ -74,7 +77,7 @@ export function GiftBookApp() {
     if (editingEvent) {
       try {
         await updateEvent(editingEvent.id, data)
-        notifySuccess('活动更新成功')
+        notifySuccess('活动更新成功', { voiceURI: successVoiceURI })
       } catch (error) {
         toast.error(error instanceof Error ? error.message : '活动更新失败')
       }
@@ -86,7 +89,7 @@ export function GiftBookApp() {
     if (deleteEventId) {
       try {
         await deleteEvent(deleteEventId)
-        notifySuccess('活动已删除')
+        notifySuccess('活动已删除', { voiceURI: successVoiceURI })
       } catch (error) {
         toast.error(error instanceof Error ? error.message : '活动删除失败')
       }
@@ -112,7 +115,7 @@ export function GiftBookApp() {
       return
     }
     exportAllToExcel(events, records)
-    notifySuccess('导出成功')
+    notifySuccess('导出成功', { voiceURI: successVoiceURI })
   }
 
   const selectedEvents = events.filter((event) => selectedEventIds.includes(event.id))
@@ -127,7 +130,9 @@ export function GiftBookApp() {
       selectedEvents,
       records.filter((record) => selectedEventIds.includes(record.eventId))
     )
-    notifySuccess(`已导出 ${selectedEvents.length} 个活动`)
+    notifySuccess(`已导出 ${selectedEvents.length} 个活动`, {
+      voiceURI: successVoiceURI,
+    })
   }
 
   const handleSelectEvent = (id: string, checked: boolean) => {
@@ -148,6 +153,10 @@ export function GiftBookApp() {
     }
   }
 
+  useEffect(() => {
+    document.documentElement.dataset.interfaceStyle = interfaceStyle
+  }, [interfaceStyle])
+
   if (authLoading || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -161,7 +170,7 @@ export function GiftBookApp() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" data-interface-style={interfaceStyle}>
       <Header />
       
       <main className="container mx-auto px-4 py-6">
@@ -235,6 +244,8 @@ export function GiftBookApp() {
                   records={getRecordsByEvent(event.id)}
                   selected={selectedEventIds.includes(event.id)}
                   maskAmounts={maskAmounts}
+                  interfaceStyle={event.interfaceStyle}
+                  pdfCoverImageDataUrl={event.pdfCoverImageDataUrl ?? null}
                   onSelectChange={(checked) => handleSelectEvent(event.id, checked)}
                   onSelect={() => router.push(`/events/${event.id}`)}
                   onEdit={() => handleEditEvent(event)}
@@ -250,6 +261,8 @@ export function GiftBookApp() {
         open={eventDialogOpen}
         onOpenChange={handleEventDialogClose}
         event={editingEvent}
+        defaultInterfaceStyle={interfaceStyle}
+        defaultPdfCoverImageDataUrl={pdfCoverImageDataUrl}
         onSubmit={editingEvent ? handleUpdateEvent : handleCreateEvent}
       />
 

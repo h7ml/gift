@@ -363,8 +363,8 @@ export function RecordsTable({
         </div>
       )}
 
-      <div className="border rounded-lg overflow-hidden">
-        <Table>
+      <div className="rounded-lg border">
+        <Table className="min-w-[920px]">
           <TableHeader>
             <TableRow className="bg-secondary/50">
               <TableHead className="w-[44px] text-center">

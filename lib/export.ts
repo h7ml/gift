@@ -6,6 +6,11 @@ import { zhCN } from 'date-fns/locale'
 import type { Event, GiftRecord } from './types'
 import { formatChineseMoney } from './chinese-money.js'
 
+interface ExportPdfOptions {
+  coverImageDataUrl?: string | null
+  interfaceStyle?: 'red' | 'gray'
+}
+
 export function exportToExcel(records: GiftRecord[], event: Event) {
   const data = records.map((record, index) => ({
     '序号': index + 1,
@@ -67,20 +72,53 @@ export function exportToExcel(records: GiftRecord[], event: Event) {
   XLSX.writeFile(workbook, fileName)
 }
 
-export function exportToPDF(records: GiftRecord[], event: Event) {
+export function exportToPDF(
+  records: GiftRecord[],
+  event: Event,
+  options: ExportPdfOptions = {}
+) {
   const doc = new jsPDF()
+  const palette =
+    options.interfaceStyle === 'gray'
+      ? {
+          head: [78, 78, 78] as [number, number, number],
+          alternate: [246, 246, 246] as [number, number, number],
+          foot: [232, 232, 232] as [number, number, number],
+          footText: [55, 55, 55] as [number, number, number],
+        }
+      : {
+          head: [185, 28, 28] as [number, number, number],
+          alternate: [255, 245, 238] as [number, number, number],
+          foot: [255, 235, 225] as [number, number, number],
+          footText: [139, 69, 19] as [number, number, number],
+        }
+  let startY = event.location ? 62 : 55
+
+  if (options.coverImageDataUrl) {
+    try {
+      doc.addImage(options.coverImageDataUrl, 'JPEG', 20, 12, 170, 60)
+      startY = 88
+    } catch {
+      doc.addImage(options.coverImageDataUrl, 'PNG', 20, 12, 170, 60)
+      startY = 88
+    }
+  }
   
   // 添加标题
   doc.setFontSize(18)
-  doc.text(event.name + ' - 礼金记录', 105, 20, { align: 'center' })
+  doc.text(event.name + ' - 礼金记录', 105, options.coverImageDataUrl ? 80 : 20, {
+    align: 'center',
+  })
   
   doc.setFontSize(12)
-  doc.text(`活动类型: ${event.type}`, 20, 35)
-  doc.text(`活动日期: ${format(new Date(event.date), 'yyyy年MM月dd日', { locale: zhCN })}`, 20, 42)
-  doc.text(`记账人: ${event.bookkeeperName || '-'}`, 20, 49)
+  const metaStartY = options.coverImageDataUrl ? 94 : 35
+  doc.text(`活动类型: ${event.type}`, 20, metaStartY)
+  doc.text(`活动日期: ${format(new Date(event.date), 'yyyy年MM月dd日', { locale: zhCN })}`, 20, metaStartY + 7)
+  doc.text(`记账人: ${event.bookkeeperName || '-'}`, 20, metaStartY + 14)
   if (event.location) {
-    doc.text(`活动地点: ${event.location}`, 20, 56)
+    doc.text(`活动地点: ${event.location}`, 20, metaStartY + 21)
   }
+  startY = Math.max(startY, event.location ? metaStartY + 28 : metaStartY + 21)
 
   // 添加表格
   const tableData = records.map((record, index) => [
@@ -112,21 +150,21 @@ export function exportToPDF(records: GiftRecord[], event: Event) {
   autoTable(doc, {
     head: [['#', 'Name', 'Phone', 'Address', 'Amount', 'Uppercase', 'Gift', 'Date', 'Note']],
     body: tableData,
-    startY: event.location ? 62 : 55,
+    startY,
     styles: {
       fontSize: 10,
       cellPadding: 3
     },
     headStyles: {
-      fillColor: [185, 28, 28],
+      fillColor: palette.head,
       textColor: 255
     },
     alternateRowStyles: {
-      fillColor: [255, 245, 238]
+      fillColor: palette.alternate
     },
     footStyles: {
-      fillColor: [255, 235, 225],
-      textColor: [139, 69, 19],
+      fillColor: palette.foot,
+      textColor: palette.footText,
       fontStyle: 'bold'
     }
   })
