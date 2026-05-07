@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import {
+  buildAttachmentDownloadHeaders,
   buildStoredAttachmentName,
   mapAttachmentRow,
   sanitizeAttachmentFileName,
@@ -65,4 +66,31 @@ test('mapAttachmentRow falls back to originalName when displayName is empty', ()
 
   assert.equal(attachment.displayName, undefined)
   assert.equal(attachment.note, undefined)
+})
+
+test('buildAttachmentDownloadHeaders uses the uploaded file name for downloads', () => {
+  const headers = buildAttachmentDownloadHeaders({
+    original_name: '手记 01.jpg',
+    display_name: null,
+    mime_type: 'image/jpeg',
+  })
+
+  assert.equal(headers['Content-Type'], 'image/jpeg')
+  assert.equal(
+    headers['Content-Disposition'],
+    `inline; filename="shou-ji-01.jpg"; filename*=UTF-8''%E6%89%8B%E8%AE%B0%2001.jpg`
+  )
+})
+
+test('buildAttachmentDownloadHeaders prefers edited display name', () => {
+  const headers = buildAttachmentDownloadHeaders({
+    original_name: '1.jpg',
+    display_name: '婚礼手记.jpg',
+    mime_type: 'image/jpeg',
+  })
+
+  assert.equal(
+    headers['Content-Disposition'],
+    `inline; filename="shou-ji.jpg"; filename*=UTF-8''%E5%A9%9A%E7%A4%BC%E6%89%8B%E8%AE%B0.jpg`
+  )
 })

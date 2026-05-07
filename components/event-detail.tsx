@@ -123,6 +123,7 @@ export function EventDetail({
   const [batchDeleteAttachmentsOpen, setBatchDeleteAttachmentsOpen] = useState(false)
   const [attachmentsExpanded, setAttachmentsExpanded] = useState(true)
   const [isAttachmentDragActive, setIsAttachmentDragActive] = useState(false)
+  const [previewAttachment, setPreviewAttachment] = useState<EventAttachment | null>(null)
   const [recordsExpanded, setRecordsExpanded] = useState(true)
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -497,13 +498,18 @@ export function EventDetail({
                         选择
                       </label>
                       {attachment.mimeType.startsWith('image/') && (
-                        <a href={attachment.url} target="_blank" rel="noreferrer">
+                        <button
+                          type="button"
+                          className="group block w-full overflow-hidden rounded-md border text-left focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                          onClick={() => setPreviewAttachment(attachment)}
+                          aria-label={`放大查看 ${attachment.displayName || attachment.originalName}`}
+                        >
                           <img
                             src={attachment.url}
                             alt={attachment.originalName}
-                            className="w-full aspect-video object-cover rounded-md border"
+                            className="w-full aspect-video object-cover transition-transform duration-200 group-hover:scale-105"
                           />
-                        </a>
+                        </button>
                       )}
                       <div className="min-w-0">
                         <p className="font-medium truncate">
@@ -707,6 +713,48 @@ export function EventDetail({
         event={event}
         onSubmit={onUpdateEvent}
       />
+
+      <Dialog
+        open={!!previewAttachment}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPreviewAttachment(null)
+          }
+        }}
+      >
+        <DialogContent className="max-h-[92vh] gap-3 p-3 sm:max-w-[min(96vw,1120px)] sm:p-4">
+          {previewAttachment && (
+            <>
+              <DialogHeader className="px-1">
+                <DialogTitle className="truncate pr-8 text-base text-primary">
+                  {previewAttachment.displayName || previewAttachment.originalName}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="flex min-h-0 items-center justify-center overflow-hidden rounded-md bg-black">
+                <img
+                  src={previewAttachment.url}
+                  alt={previewAttachment.displayName || previewAttachment.originalName}
+                  className="max-h-[72vh] w-auto max-w-full object-contain"
+                />
+              </div>
+              <div className="flex flex-col gap-2 px-1 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0 text-sm text-muted-foreground">
+                  {previewAttachment.note && (
+                    <p className="truncate">{previewAttachment.note}</p>
+                  )}
+                  <p>{formatFileSize(previewAttachment.sizeBytes)}</p>
+                </div>
+                <Button asChild variant="outline" size="sm">
+                  <a href={previewAttachment.url} target="_blank" rel="noreferrer">
+                    <Download className="h-4 w-4 mr-2" />
+                    新窗口打开
+                  </a>
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={!!editingAttachment}

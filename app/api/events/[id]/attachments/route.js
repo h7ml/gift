@@ -1,5 +1,9 @@
 import { jsonError } from '@/lib/api.js'
-import { createAttachment, listAttachments } from '@/lib/db/attachments.js'
+import {
+  AttachmentStorageNotMigratedError,
+  createAttachment,
+  listAttachments,
+} from '@/lib/db/attachments.js'
 import { requireCurrentUser } from '@/lib/server-auth.js'
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024
@@ -55,6 +59,10 @@ export async function POST(request, { params }) {
 
     return Response.json({ attachments }, { status: 201 })
   } catch (error) {
+    if (error instanceof AttachmentStorageNotMigratedError) {
+      return jsonError(error.message, 500)
+    }
+
     return jsonError(error.message)
   }
 }

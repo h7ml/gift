@@ -1,10 +1,8 @@
-import { readFile } from 'node:fs/promises'
-import path from 'node:path'
-
 import { jsonError } from '@/lib/api.js'
 import {
-  ATTACHMENT_UPLOAD_DIR,
-  findAttachmentForUser,
+  AttachmentStorageNotMigratedError,
+  buildAttachmentDownloadHeaders,
+  findAttachmentFileForUser,
 } from '@/lib/db/attachments.js'
 import { requireCurrentUser } from '@/lib/server-auth.js'
 
@@ -16,26 +14,23 @@ export async function GET(_request, { params }) {
   }
 
   const { id } = await params
-  const attachment = await findAttachmentForUser(user.id, id)
-
-  if (!attachment) {
-    return jsonError('文件不存在', 404)
-  }
+  let attachment
 
   try {
-    const file = await readFile(
-      path.join(ATTACHMENT_UPLOAD_DIR, attachment.stored_name)
-    )
+    attachment = await findAttachmentFileForUser(user.id, id)
+  } catch (error) {
+    if (error instanceof AttachmentStorageNotMigratedError) {
+      return jsonError(error.message, 500)
+    }
 
-    return new Response(file, {
-      headers: {
-        'Content-Type': attachment.mime_type,
-        'Content-Disposition': `inline; filename="${encodeURIComponent(
-          attachment.display_name || attachment.original_name
-        )}"`,
-      },
-    })
-  } catch {
+    return jsonError(error.message || '文件加载失败', 500)
+  }
+
+  if (!attachment?.file_data) {
     return jsonError('文件不存在', 404)
   }
+
+  return new Response(attachment.file_data, {
+    headers: buildAttachmentDownloadHeaders(attachment),
+  })
 }

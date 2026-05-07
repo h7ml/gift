@@ -82,11 +82,14 @@ create table if not exists event_attachments (
   stored_name text not null,
   mime_type text not null,
   size_bytes bigint not null check (size_bytes >= 0),
+  file_data bytea,
   created_at timestamptz not null default now()
 );
 
 alter table event_attachments add column if not exists display_name text;
 alter table event_attachments add column if not exists note text;
+alter table event_attachments add column if not exists file_data bytea;
+alter table event_attachments alter column stored_name drop not null;
 
 create table if not exists user_preferences (
   user_id uuid not null references users(id) on delete cascade,
